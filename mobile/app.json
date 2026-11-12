@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Param Pharma",
+    "slug": "param-pharma",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "parampharma",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.parampharma.app"
+    },
+    "android": {
+      "package": "com.parampharma.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0f172a",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
