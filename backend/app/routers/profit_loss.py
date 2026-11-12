@@ -18,7 +18,7 @@ def get_pnl_statement(
     other_income: float = 0.0,
     finance_costs: float = 0.0,
     depreciation: float = 0.0,
-    tax_rate: float = 25.0,
+    tax_rate: float = 0.0,
     db: Session = Depends(get_db)
 ):
     return ProfitLossService.calculate_pnl(

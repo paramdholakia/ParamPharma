@@ -169,8 +169,8 @@ export const ProfitLoss: React.FC<ProfitLossProps> = ({ showToast }) => {
 
               {/* Net Profit */}
               <div className="p-2.5 px-4 flex justify-between text-slate-600 dark:text-slate-400">
-                <span className="pl-3">Tax Provision (25% on positive profit)</span>
-                <span className="font-mono text-slate-500 dark:text-slate-400">-₹{statement?.tax_provision?.toFixed(2)}</span>
+                <span className="pl-3">Tax Provision (0% - Client Setting)</span>
+                <span className="font-mono text-slate-500 dark:text-slate-400">₹{statement?.tax_provision?.toFixed(2) || '0.00'}</span>
               </div>
               <div className="p-3.5 px-4 flex justify-between font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-950 dark:text-emerald-200 text-sm border-t-2 border-emerald-500">
                 <span>NET PROFIT AFTER TAX (Margin: {statement?.net_profit_percent}%)</span>

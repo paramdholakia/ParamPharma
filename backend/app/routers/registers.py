@@ -19,6 +19,7 @@ def get_sales_register(
     from_date: Optional[date] = None,
     to_date: Optional[date] = None,
     customer_id: Optional[int] = None,
+    tax_type: Optional[str] = None,  # "all", "gst", "non_gst"
     db: Session = Depends(get_db)
 ):
     query = db.query(SalesInvoice).filter(SalesInvoice.status == "Finalized")
@@ -28,16 +29,24 @@ def get_sales_register(
         query = query.filter(SalesInvoice.invoice_date <= to_date)
     if customer_id:
         query = query.filter(SalesInvoice.customer_id == customer_id)
+    if tax_type == "gst":
+        query = query.filter(SalesInvoice.is_non_gst == False)
+    elif tax_type == "non_gst":
+        query = query.filter(SalesInvoice.is_non_gst == True)
 
     invoices = query.order_by(desc(SalesInvoice.invoice_date), desc(SalesInvoice.id)).all()
 
+    gst_invoices = [i for i in invoices if not getattr(i, 'is_non_gst', False)]
+    non_gst_invoices = [i for i in invoices if getattr(i, 'is_non_gst', False)]
+
     total_gross = sum(i.total_gross_amount for i in invoices)
     total_discount = sum(i.total_discount_amount for i in invoices)
-    total_taxable = sum(i.total_taxable_amount for i in invoices)
-    total_cgst = sum(i.cgst_amount for i in invoices)
-    total_sgst = sum(i.sgst_amount for i in invoices)
-    total_igst = sum(i.igst_amount for i in invoices)
-    total_gst = sum(i.total_gst_amount for i in invoices)
+    total_taxable = sum(i.total_taxable_amount for i in gst_invoices)
+    total_non_gst_amount = sum(i.net_invoice_amount for i in non_gst_invoices)
+    total_cgst = sum(i.cgst_amount for i in gst_invoices)
+    total_sgst = sum(i.sgst_amount for i in gst_invoices)
+    total_igst = sum(i.igst_amount for i in gst_invoices)
+    total_gst = sum(i.total_gst_amount for i in gst_invoices)
     total_invoice = sum(i.net_invoice_amount for i in invoices)
     total_paid = sum(i.paid_amount for i in invoices)
     total_balance = sum(i.balance_amount for i in invoices)
@@ -45,9 +54,12 @@ def get_sales_register(
     return {
         "summary": {
             "invoice_count": len(invoices),
+            "gst_invoice_count": len(gst_invoices),
+            "non_gst_invoice_count": len(non_gst_invoices),
             "total_gross": round(total_gross, 2),
             "total_discount": round(total_discount, 2),
             "total_taxable": round(total_taxable, 2),
+            "total_non_gst_amount": round(total_non_gst_amount, 2),
             "total_cgst": round(total_cgst, 2),
             "total_sgst": round(total_sgst, 2),
             "total_igst": round(total_igst, 2),

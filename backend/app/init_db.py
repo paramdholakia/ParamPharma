@@ -29,10 +29,10 @@ def init_database():
                 legal_name="Param Pharma Wholesale & Distribution",
                 address_line1="Station Road, Pharmaceutical Wholesale Market",
                 address_line2="Opp. Civil Hospital",
-                city="Ahmedabad",
+                city="Bhuj, Kutch",
                 state="Gujarat",
                 state_code="24",
-                pincode="380001",
+                pincode="370001",
                 phone="9429041051",
                 email="paramdholakia@gmail.com",
                 upi_id="aldholakia72-1@okaxis",
@@ -57,7 +57,7 @@ def init_database():
                 voucher_prefix="VCH26/",
                 next_voucher_num=1,
                 financial_year="2026-2027",
-                terms_conditions="1. Goods once sold will not be taken back without prior inspection.\n2. Interest @ 18% p.a. will be charged if payment not received within due date.\n3. Subject to local jurisdiction only.\n4. Certified that all drugs mentioned comply with provisions of the Drugs & Cosmetics Act."
+                terms_conditions="1. Goods once sold will not be taken back without prior inspection.\n2. Interest @ 18% p.a. will be charged if payment not received within due date.\n3. Subject to Bhuj, Kutch (Gujarat) - 370001 jurisdiction only.\n4. Certified that all drugs mentioned comply with provisions of the Drugs & Cosmetics Act."
             )
             db.add(company)
 

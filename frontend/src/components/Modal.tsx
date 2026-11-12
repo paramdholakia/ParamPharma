@@ -29,20 +29,20 @@ export const Modal: React.FC<ModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
       <div
-        className={`bg-white rounded-xl shadow-2xl border border-slate-200 w-full ${maxWidth} flex flex-col max-h-[90vh] overflow-hidden`}
+        className={`bg-white dark:bg-slate-900 rounded-none shadow-2xl border-1.5 border-slate-900 dark:border-slate-700 w-full ${maxWidth} flex flex-col max-h-[90vh] overflow-hidden`}
       >
-        <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-          <h2 className="text-sm font-bold text-slate-800">{title}</h2>
+        <div className="px-5 py-3.5 border-b border-slate-300 dark:border-slate-700 flex items-center justify-between bg-slate-100 dark:bg-slate-800">
+          <h2 className="text-xs font-black text-slate-900 dark:text-white uppercase font-mono tracking-wider">{title}</h2>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 rounded-md p-1 hover:bg-slate-200 transition cursor-pointer"
+            className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white p-1 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
           >
             <X size={16} />
           </button>
         </div>
-        <div className="p-5 overflow-y-auto flex-1">{children}</div>
+        <div className="p-5 overflow-y-auto flex-1 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">{children}</div>
       </div>
     </div>
   );

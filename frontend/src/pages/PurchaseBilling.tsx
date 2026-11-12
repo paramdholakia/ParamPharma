@@ -529,8 +529,16 @@ export const PurchaseBilling: React.FC<PurchaseBillingProps> = ({ showToast }) =
             <span>₹{totalTaxable.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-slate-700 dark:text-slate-300">
-            <span>Total GST (ITC Eligible):</span>
-            <span>₹{totalGst.toFixed(2)}</span>
+            <span>Central GST (CGST ITC):</span>
+            <span>₹{totalCgst.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-slate-700 dark:text-slate-300">
+            <span>State GST (SGST ITC):</span>
+            <span>₹{totalSgst.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-slate-700 dark:text-slate-300">
+            <span>Integrated GST (IGST ITC):</span>
+            <span>₹{totalIgst.toFixed(2)}</span>
           </div>
           <div className="flex justify-between items-center border-t-2 border-slate-900 dark:border-slate-700 pt-1.5 text-slate-900 dark:text-white font-black text-base">
             <span>TOTAL BILL:</span>

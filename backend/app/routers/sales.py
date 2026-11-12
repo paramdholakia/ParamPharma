@@ -17,6 +17,7 @@ from backend.app.services.gst_engine import (
 from backend.app.services.inventory_service import InventoryService
 from backend.app.services.accounting_service import AccountingService
 from backend.app.services.pdf_generator import generate_invoice_pdf
+from backend.app.services.excel_exporter import export_invoice_excel
 
 router = APIRouter(prefix="/api/sales", tags=["Sales Billing & GST"])
 
@@ -39,6 +40,8 @@ class SalesInvoiceCreateSchema(BaseModel):
     paid_amount: float = 0.0
     notes: Optional[str] = ""
     include_upi_qr: bool = True
+    is_non_gst: bool = False
+    upi_id: Optional[str] = None
     status: str = "Finalized"  # Draft or Finalized
     allow_expired_override: bool = False
     items: List[SalesInvoiceItemSchema]
@@ -110,14 +113,24 @@ def create_sales_invoice(data: SalesInvoiceCreateSchema, db: Session = Depends(g
         if not product or not batch:
             raise HTTPException(status_code=400, detail="Invalid product or batch reference.")
 
-        line_gst = item_in.gst_rate if item_in.gst_rate is not None else batch.gst_rate
-        calc = calculate_line_item_gst(
-            quantity=item_in.quantity,
-            rate=item_in.rate,
-            discount_percent=item_in.discount_percent,
-            gst_rate=line_gst,
-            is_interstate=is_interstate
-        )
+        if data.is_non_gst:
+            line_gst = 0.0
+            calc = calculate_line_item_gst(
+                quantity=item_in.quantity,
+                rate=item_in.rate,
+                discount_percent=item_in.discount_percent,
+                gst_rate=0.0,
+                is_interstate=False
+            )
+        else:
+            line_gst = item_in.gst_rate if item_in.gst_rate is not None else batch.gst_rate
+            calc = calculate_line_item_gst(
+                quantity=item_in.quantity,
+                rate=item_in.rate,
+                discount_percent=item_in.discount_percent,
+                gst_rate=line_gst,
+                is_interstate=is_interstate
+            )
         items_breakdown.append(calc)
 
         prepared_items.append({
@@ -192,7 +205,9 @@ def create_sales_invoice(data: SalesInvoiceCreateSchema, db: Session = Depends(g
         payment_status=payment_status,
         status=data.status,
         notes=data.notes,
-        include_upi_qr=data.include_upi_qr
+        include_upi_qr=data.include_upi_qr,
+        is_non_gst=data.is_non_gst,
+        upi_id=data.upi_id or company.upi_id or "aldholakia72-1@okaxis"
     )
     db.add(invoice)
     db.flush()
@@ -282,4 +297,25 @@ def download_invoice_pdf(invoice_id: int, include_qr: Optional[bool] = Query(Non
         content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=Invoice_{safe_name}.pdf"}
+    )
+
+@router.get("/{invoice_id}/excel")
+def download_invoice_excel(invoice_id: int, db: Session = Depends(get_db)):
+    invoice = db.query(SalesInvoice).filter(SalesInvoice.id == invoice_id).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    company = db.query(CompanySettings).first()
+    items = db.query(SalesInvoiceItem).filter(SalesInvoiceItem.invoice_id == invoice_id).all()
+
+    company_dict = {c.name: getattr(company, c.name) for c in company.__table__.columns}
+    invoice_dict = {c.name: getattr(invoice, c.name) for c in invoice.__table__.columns}
+    items_list = [{c.name: getattr(it, c.name) for c in it.__table__.columns} for it in items]
+
+    excel_bytes = export_invoice_excel(company_dict, invoice_dict, items_list)
+    safe_name = invoice.invoice_number.replace("/", "_")
+    return Response(
+        content=excel_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename=Invoice_{safe_name}.xlsx"}
     )

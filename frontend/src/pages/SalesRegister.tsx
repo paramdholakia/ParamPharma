@@ -18,6 +18,9 @@ export const SalesRegister: React.FC<SalesRegisterProps> = ({ showToast }) => {
   const [search, setSearch] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
+  // Tax type filter ("all", "gst", "non_gst")
+  const [taxTypeFilter, setTaxTypeFilter] = useState<string>('all');
+
   // Expanded row id for inline detailed items inspection
   const [expandedInvoiceId, setExpandedInvoiceId] = useState<number | null>(null);
   const [expandedItems, setExpandedItems] = useState<{ [id: number]: any[] }>({});
@@ -29,6 +32,7 @@ export const SalesRegister: React.FC<SalesRegisterProps> = ({ showToast }) => {
       let endpoint = `/registers/sales?`;
       if (fromDate) endpoint += `&from_date=${fromDate}`;
       if (toDate) endpoint += `&to_date=${toDate}`;
+      if (taxTypeFilter !== 'all') endpoint += `&tax_type=${taxTypeFilter}`;
       const res = await apiRequest(endpoint);
       setInvoices(res.invoices || []);
       setSummary(res.summary || {});
@@ -41,7 +45,7 @@ export const SalesRegister: React.FC<SalesRegisterProps> = ({ showToast }) => {
 
   useEffect(() => {
     fetchRegister();
-  }, [fromDate, toDate]);
+  }, [fromDate, toDate, taxTypeFilter]);
 
   const handleExportExcel = async () => {
     try {
@@ -64,6 +68,18 @@ export const SalesRegister: React.FC<SalesRegisterProps> = ({ showToast }) => {
       showToast(`Downloaded PDF for ${invoice.invoice_number}`, 'success');
     } catch (err: any) {
       showToast(err.message || 'PDF download failed', 'error');
+    }
+  };
+
+  const handleDownloadExcel = async (invoice: any) => {
+    try {
+      await downloadFile(
+        `/sales/${invoice.id}/excel`,
+        `Invoice_${invoice.invoice_number.replace('/', '_')}.xlsx`
+      );
+      showToast(`Exported Excel for ${invoice.invoice_number}`, 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Excel export failed', 'error');
     }
   };
 
@@ -161,9 +177,19 @@ Thank you for choosing Param Pharma Wholesale!`;
             onChange={(e) => setToDate(e.target.value)}
             className="px-2 py-1 border border-slate-900 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono text-xs outline-hidden"
           />
-          {(fromDate || toDate) && (
+          <span className="font-bold text-slate-700 dark:text-slate-300 ml-1">Type:</span>
+          <select
+            value={taxTypeFilter}
+            onChange={(e) => setTaxTypeFilter(e.target.value)}
+            className="px-2 py-1 border border-slate-900 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold text-xs outline-hidden cursor-pointer"
+          >
+            <option value="all">All Invoices</option>
+            <option value="gst">GST Tax Invoices Only</option>
+            <option value="non_gst">Non-GST Retail Bills Only</option>
+          </select>
+          {(fromDate || toDate || taxTypeFilter !== 'all') && (
             <button
-              onClick={() => { setFromDate(''); setToDate(''); }}
+              onClick={() => { setFromDate(''); setToDate(''); setTaxTypeFilter('all'); }}
               className="text-blue-600 dark:text-blue-400 font-bold hover:underline ml-2 text-xs cursor-pointer"
             >
               Clear Filter
@@ -217,7 +243,7 @@ Thank you for choosing Param Pharma Wholesale!`;
                 const itemsList = expandedItems[inv.id] || [];
                 return (
                   <React.Fragment key={inv.id}>
-                    <tr className={`hover:bg-slate-50 dark:hover:bg-slate-800/60 transition ${isExpanded ? 'bg-amber-50/50 dark:bg-slate-850' : ''}`}>
+                    <tr className={`hover:bg-slate-50 dark:hover:bg-slate-800/60 transition ${isExpanded ? 'bg-amber-50/50 dark:bg-slate-800' : ''}`}>
                       <td className="py-2 px-1 text-center">
                         <button
                           onClick={() => toggleExpand(inv.id)}
@@ -228,7 +254,12 @@ Thank you for choosing Param Pharma Wholesale!`;
                         </button>
                       </td>
                       <td className="py-2 px-3 font-mono font-black text-blue-900 dark:text-blue-400">
-                        {inv.invoice_number}
+                        <div>{inv.invoice_number}</div>
+                        {inv.is_non_gst && (
+                          <span className="inline-block text-[9px] px-1 py-0.2 bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 border border-purple-500 font-sans font-bold">
+                            Non-GST
+                          </span>
+                        )}
                       </td>
                       <td className="py-2 px-3 font-mono text-[11px] text-slate-700 dark:text-slate-300">
                         {formatDate(inv.invoice_date)}
@@ -285,6 +316,13 @@ Thank you for choosing Param Pharma Wholesale!`;
                             className="p-1 border border-slate-900 dark:border-slate-600 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 brutalist-btn cursor-pointer"
                           >
                             <Printer size={13} />
+                          </button>
+                          <button
+                            onClick={() => handleDownloadExcel(inv)}
+                            title="Export Invoice to Excel (.xlsx)"
+                            className="p-1 border border-slate-900 dark:border-slate-600 bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 brutalist-btn cursor-pointer"
+                          >
+                            <FileSpreadsheet size={13} />
                           </button>
                         </div>
                       </td>

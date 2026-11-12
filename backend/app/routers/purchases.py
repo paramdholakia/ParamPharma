@@ -11,6 +11,8 @@ from backend.app.models.supplier import Supplier
 from backend.app.models.product import Product, ProductBatch
 from backend.app.models.company import CompanySettings
 from backend.app.models.payment import SupplierPayment
+from backend.app.models.inventory import StockMovement
+from backend.app.models.ledger import SupplierLedger
 from backend.app.services.gst_engine import (
     calculate_line_item_gst, calculate_invoice_totals, is_interstate_transaction
 )
@@ -260,3 +262,172 @@ def create_purchase_invoice(data: PurchaseInvoiceCreateSchema, db: Session = Dep
     db.commit()
     db.refresh(purchase)
     return {"message": "Purchase invoice saved and stock inwarded successfully", "purchase": purchase}
+
+@router.put("/{purchase_id}")
+def update_purchase_invoice(purchase_id: int, data: PurchaseInvoiceCreateSchema, db: Session = Depends(get_db)):
+    """
+    Edits an existing inward purchase record.
+    Reverts old batch quantities and stock movements, reverses old supplier ledger entry,
+    and accurately recalculates and applies corrected purchase details.
+    """
+    purchase = db.query(PurchaseInvoice).filter(PurchaseInvoice.id == purchase_id).first()
+    if not purchase:
+        raise HTTPException(status_code=404, detail="Purchase invoice not found.")
+
+    company = db.query(CompanySettings).first()
+    supplier = db.query(Supplier).filter(Supplier.id == data.supplier_id).first()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found.")
+
+    # 1. Revert previous stock inward from batches
+    old_items = db.query(PurchaseInvoiceItem).filter(PurchaseInvoiceItem.purchase_id == purchase_id).all()
+    for old_item in old_items:
+        batch = (
+            db.query(ProductBatch)
+            .filter(
+                ProductBatch.product_id == old_item.product_id,
+                ProductBatch.batch_number == old_item.batch_number
+            )
+            .first()
+        )
+        if batch:
+            revert_qty = old_item.quantity + old_item.free_quantity
+            batch.inward_qty = max(0, batch.inward_qty - revert_qty)
+            batch.available_qty = max(0, batch.available_qty - revert_qty)
+
+    # Delete previous stock movements for this purchase
+    db.query(StockMovement).filter(
+        StockMovement.movement_type == "PURCHASE",
+        StockMovement.reference_id == purchase_id
+    ).delete()
+
+    # 2. Revert previous supplier ledger credit
+    old_ledger = (
+        db.query(SupplierLedger)
+        .filter(
+            SupplierLedger.reference_type == "Purchase",
+            SupplierLedger.reference_id == purchase_id
+        )
+        .first()
+    )
+    if old_ledger:
+        old_supplier = db.query(Supplier).filter(Supplier.id == purchase.supplier_id).with_for_update().first()
+        if old_supplier:
+            old_supplier.current_balance = round(old_supplier.current_balance - old_ledger.credit_amount, 2)
+        db.delete(old_ledger)
+
+    # Delete old line items
+    db.query(PurchaseInvoiceItem).filter(PurchaseInvoiceItem.purchase_id == purchase_id).delete()
+
+    # 3. Calculate new items and totals
+    is_interstate = is_interstate_transaction(company.state_code, supplier.state_code)
+    items_breakdown = []
+    prepared_items = []
+
+    for item_in in data.items:
+        product = db.query(Product).filter(Product.id == item_in.product_id).first()
+        if not product:
+            raise HTTPException(status_code=400, detail=f"Product ID {item_in.product_id} not found.")
+
+        calc = calculate_line_item_gst(
+            quantity=item_in.quantity,
+            rate=item_in.purchase_rate,
+            discount_percent=item_in.discount_percent,
+            gst_rate=item_in.gst_rate,
+            is_interstate=is_interstate
+        )
+        items_breakdown.append(calc)
+
+        ptr = item_in.ptr or round(item_in.purchase_rate * 1.15, 2)
+        pts = item_in.pts or round(item_in.purchase_rate * 1.05, 2)
+
+        prepared_items.append({
+            "product_id": product.id,
+            "product_name": product.medicine_name,
+            "hsn_code": product.hsn_code,
+            "manufacturer": product.manufacturer,
+            "packing": product.packing,
+            "batch_number": item_in.batch_number.strip().upper(),
+            "mfg_date": item_in.mfg_date,
+            "expiry_date": item_in.expiry_date,
+            "mrp": item_in.mrp,
+            "purchase_rate": item_in.purchase_rate,
+            "ptr": ptr,
+            "pts": pts,
+            "quantity": item_in.quantity,
+            "free_quantity": item_in.free_quantity,
+            "discount_percent": item_in.discount_percent,
+            "discount_amount": calc["discount_amount"],
+            "taxable_amount": calc["taxable_amount"],
+            "gst_rate": calc["gst_rate"],
+            "cgst_rate": calc["cgst_rate"],
+            "cgst_amount": calc["cgst_amount"],
+            "sgst_rate": calc["sgst_rate"],
+            "sgst_amount": calc["sgst_amount"],
+            "igst_rate": calc["igst_rate"],
+            "igst_amount": calc["igst_amount"],
+            "total_amount": calc["total_amount"]
+        })
+
+    totals = calculate_invoice_totals(items_breakdown)
+    net_total = totals["net_invoice_amount"]
+    paid_amt = min(net_total, max(0.0, data.paid_amount))
+    balance_amt = round(net_total - paid_amt, 2)
+    payment_status = "Paid" if balance_amt == 0 else ("Partial" if paid_amt > 0 else "Unpaid")
+
+    # Update purchase invoice fields
+    purchase.supplier_invoice_number = data.supplier_invoice_number.strip()
+    purchase.purchase_date = data.purchase_date
+    purchase.supplier_id = supplier.id
+    purchase.supplier_name = supplier.supplier_name
+    purchase.supplier_address = supplier.address
+    purchase.gstin = supplier.gstin
+    purchase.dl_number = supplier.dl_number
+    purchase.pan = supplier.pan
+    purchase.state = supplier.state
+    purchase.state_code = supplier.state_code
+    purchase.is_interstate = is_interstate
+    purchase.payment_terms = data.payment_terms
+    purchase.due_date = data.due_date
+    purchase.total_gross_amount = totals["total_gross_amount"]
+    purchase.total_discount_amount = totals["total_discount_amount"]
+    purchase.total_taxable_amount = totals["total_taxable_amount"]
+    purchase.cgst_amount = totals["cgst_amount"]
+    purchase.sgst_amount = totals["sgst_amount"]
+    purchase.igst_amount = totals["igst_amount"]
+    purchase.total_gst_amount = totals["total_gst_amount"]
+    purchase.round_off = totals["round_off"]
+    purchase.net_purchase_amount = net_total
+    purchase.paid_amount = paid_amt
+    purchase.balance_amount = balance_amt
+    purchase.payment_status = payment_status
+    purchase.notes = data.notes
+
+    for it in prepared_items:
+        p_item = PurchaseInvoiceItem(purchase_id=purchase.id, **it)
+        db.add(p_item)
+
+    # 4. Inward updated stock
+    InventoryService.process_purchase_stock_inward(
+        db=db,
+        items=prepared_items,
+        purchase_id=purchase.id,
+        purchase_number=purchase.purchase_entry_number
+    )
+
+    # 5. Re-post Credit in Supplier Ledger
+    AccountingService.post_supplier_transaction(
+        db=db,
+        supplier_id=supplier.id,
+        transaction_date=data.purchase_date,
+        reference_type="Purchase",
+        reference_id=purchase.id,
+        reference_number=purchase.purchase_entry_number,
+        description=f"Purchase Bill {data.supplier_invoice_number} (Ref: {purchase.purchase_entry_number}) [Edited]",
+        debit_amount=0.0,
+        credit_amount=net_total
+    )
+
+    db.commit()
+    db.refresh(purchase)
+    return {"message": "Purchase entry updated successfully", "purchase": purchase}

@@ -17,7 +17,7 @@ class ProfitLossService:
         other_income: float = 0.0,
         finance_costs: float = 0.0,
         depreciation: float = 0.0,
-        tax_rate_percent: float = 25.0
+        tax_rate_percent: float = 0.0
     ) -> Dict[str, Any]:
         """
         Calculates mathematically accurate Pharmaceutical Wholesale P&L:

@@ -43,6 +43,8 @@ class SalesInvoice(Base):
     cancellation_reason = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
     include_upi_qr = Column(Boolean, default=True, nullable=False)
+    is_non_gst = Column(Boolean, default=False, nullable=False)
+    upi_id = Column(String(100), default="aldholakia72-1@okaxis", nullable=True)
     created_by = Column(String(50), default="admin")
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

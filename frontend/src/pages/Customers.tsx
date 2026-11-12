@@ -18,6 +18,7 @@ export const Customers: React.FC<CustomersProps> = ({ showToast }) => {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [profileData, setProfileData] = useState<any>(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
 
   // Add / Edit Modal State
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -162,12 +163,12 @@ export const Customers: React.FC<CustomersProps> = ({ showToast }) => {
       {/* Header & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-bold text-slate-800">Customer & Party Management</h2>
-          <p className="text-xs text-slate-500">Chemists, Doctors, Hospitals, and Wholesale Retailers</p>
+          <h2 className="text-base font-bold text-slate-800 dark:text-white uppercase tracking-wide">Customer & Party Management</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Chemists, Doctors, Hospitals, and Wholesale Retailers</p>
         </div>
         <button
           onClick={openAddModal}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 transition shadow-xs cursor-pointer self-start sm:self-auto"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-950 rounded-none text-xs font-bold hover:bg-black dark:hover:bg-slate-200 transition shadow-xs cursor-pointer border border-slate-900 dark:border-white uppercase tracking-wider self-start sm:self-auto"
         >
           <Plus size={14} />
           Register Customer
@@ -175,23 +176,55 @@ export const Customers: React.FC<CustomersProps> = ({ showToast }) => {
       </div>
 
       {/* Filter Toolbar */}
-      <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs flex flex-wrap items-center gap-3 text-xs">
+      <div className="bg-white dark:bg-slate-900 p-3 rounded-none border border-slate-300 dark:border-slate-700 shadow-2xs flex flex-wrap items-center gap-3 text-xs">
         <div className="relative flex-1 min-w-[200px]">
-          <Search size={14} className="absolute left-2.5 top-2.5 text-slate-400" />
+          <Search size={14} className="absolute left-2.5 top-2.5 text-slate-400 dark:text-slate-500" />
           <input
             type="text"
-            placeholder="Search by party name, mobile, GSTIN, code..."
+            placeholder="Search by party name, mobile, GSTIN, code... (Click for suggestions)"
             value={search}
+            onFocus={() => setShowSearchSuggestions(true)}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-hidden"
+            className="w-full pl-8 pr-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-none focus:ring-1 focus:ring-slate-900 outline-hidden bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 font-mono"
           />
+
+          {/* Customer Search Suggestions Popover */}
+          {showSearchSuggestions && (
+            <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 shadow-xl z-20 p-2 text-xs">
+              <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-200 dark:border-slate-800 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                <span>Quick Search / Recommended Filters</span>
+                <button
+                  type="button"
+                  onClick={() => setShowSearchSuggestions(false)}
+                  className="text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {['Chemist', 'Doctor', 'Hospital', 'Medical Store', 'Bhuj', 'Ahmedabad', 'Surat', 'Rajkot', 'Gujarat'].map((sug) => (
+                  <button
+                    key={sug}
+                    type="button"
+                    onClick={() => {
+                      setSearch(sug);
+                      setShowSearchSuggestions(false);
+                    }}
+                    className="px-2 py-0.5 border border-slate-200 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-400 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 text-[11px] font-mono cursor-pointer transition"
+                  >
+                    {sug}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
-          <span className="font-medium text-slate-600">Category:</span>
+          <span className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[11px]">Category:</span>
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-2.5 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-hidden bg-white"
+            className="px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-none focus:ring-1 focus:ring-slate-900 outline-hidden bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-medium"
           >
             <option value="All">All Categories</option>
             <option value="Chemist">Chemist</option>
@@ -208,10 +241,10 @@ export const Customers: React.FC<CustomersProps> = ({ showToast }) => {
       </div>
 
       {/* High-Density Customer Table */}
-      <div className="bg-white rounded-lg border border-slate-200 shadow-2xs overflow-x-auto text-xs">
+      <div className="bg-white dark:bg-slate-900 rounded-none border border-slate-300 dark:border-slate-700 shadow-2xs overflow-x-auto text-xs">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+            <tr className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold border-b border-slate-300 dark:border-slate-700 uppercase tracking-wider text-[11px]">
               <th className="py-2.5 px-3">Party Name</th>
               <th className="py-2.5 px-3">Category</th>
               <th className="py-2.5 px-3">Mobile</th>
@@ -222,37 +255,37 @@ export const Customers: React.FC<CustomersProps> = ({ showToast }) => {
               <th className="py-2.5 px-3 text-center">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
             {customers.length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-8 text-center text-slate-400">
-                  {loading ? 'Searching customers...' : 'No customers found.'}
+                <td colSpan={8} className="py-8 text-center text-slate-400 dark:text-slate-500">
+                  {loading ? 'Searching customers...' : 'No customers found. Click [Register Customer] to add a party.'}
                 </td>
               </tr>
             ) : (
               customers.map((c) => (
-                <tr key={c.id} className="hover:bg-slate-50 transition">
-                  <td className="py-2.5 px-3 font-semibold text-slate-900">
+                <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition">
+                  <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-slate-100">
                     <div>{c.party_name}</div>
-                    <div className="text-[10px] text-slate-400 font-mono">{c.customer_code}</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">{c.customer_code}</div>
                   </td>
                   <td className="py-2.5 px-3">
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                    <span className="px-1.5 py-0.5 rounded-none text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 uppercase tracking-wider">
                       {c.customer_category}
                     </span>
                   </td>
-                  <td className="py-2.5 px-3 font-mono">{c.mobile}</td>
+                  <td className="py-2.5 px-3 font-mono text-slate-800 dark:text-slate-200">{c.mobile}</td>
                   <td className="py-2.5 px-3 font-mono text-[11px]">
-                    <div>{c.gstin || 'URP'}</div>
-                    <div className="text-[10px] text-slate-400">{c.dl_number || '-'}</div>
+                    <div className="text-slate-900 dark:text-slate-100 font-bold">{c.gstin || 'URP'}</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400">{c.dl_number || '-'}</div>
                   </td>
-                  <td className="py-2.5 px-3 text-slate-600">
+                  <td className="py-2.5 px-3 text-slate-600 dark:text-slate-300">
                     {c.city}, {c.state} ({c.state_code})
                   </td>
-                  <td className="py-2.5 px-3 text-right text-slate-600">
+                  <td className="py-2.5 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
                     ₹{c.credit_limit?.toLocaleString('en-IN')}
                   </td>
-                  <td className={`py-2.5 px-3 text-right font-bold ${c.current_balance > 0 ? 'text-rose-600' : 'text-slate-700'}`}>
+                  <td className={`py-2.5 px-3 text-right font-mono font-bold ${c.current_balance > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-300'}`}>
                     ₹{c.current_balance?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </td>
                   <td className="py-2.5 px-3 text-center">
@@ -260,14 +293,14 @@ export const Customers: React.FC<CustomersProps> = ({ showToast }) => {
                       <button
                         onClick={() => openProfile(c)}
                         title="View Complete Customer Profile & Ledger"
-                        className="p-1 rounded text-blue-600 hover:bg-blue-50 transition cursor-pointer"
+                        className="p-1 rounded-none text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition cursor-pointer"
                       >
                         <Eye size={15} />
                       </button>
                       <button
                         onClick={() => openEditModal(c)}
                         title="Edit Customer Details"
-                        className="p-1 rounded text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                        className="p-1 rounded-none text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                       >
                         <Edit2 size={15} />
                       </button>
@@ -377,10 +410,10 @@ export const Customers: React.FC<CustomersProps> = ({ showToast }) => {
         title={editingId ? 'Edit Customer' : 'Register New Customer'}
         maxWidth="max-w-2xl"
       >
-        <form onSubmit={handleFormSubmit} className="space-y-4 text-xs">
+        <form onSubmit={handleFormSubmit} className="space-y-4 text-xs text-slate-800 dark:text-slate-200">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="sm:col-span-2">
-              <label className="block font-medium text-slate-700 mb-1">
+              <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Customer / Party Name <span className="text-rose-500">*</span>
               </label>
               <input
@@ -388,16 +421,16 @@ export const Customers: React.FC<CustomersProps> = ({ showToast }) => {
                 required
                 value={formData.party_name}
                 onChange={(e) => setFormData({ ...formData, party_name: e.target.value })}
-                className="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-hidden font-medium"
+                className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-none focus:ring-1 focus:ring-slate-900 outline-hidden font-medium bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Customer Category</label>
+              <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">Customer Category</label>
               <select
                 value={formData.customer_category}
                 onChange={(e) => setFormData({ ...formData, customer_category: e.target.value })}
-                className="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-hidden bg-white"
+                className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-none focus:ring-1 focus:ring-slate-900 outline-hidden bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
               >
                 <option value="Chemist">Chemist</option>
                 <option value="Doctor">Doctor</option>
@@ -413,7 +446,7 @@ export const Customers: React.FC<CustomersProps> = ({ showToast }) => {
             </div>
 
             <div>
-              <label className="block font-medium text-slate-700 mb-1">
+              <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Mobile Number <span className="text-rose-500">*</span>
               </label>
               <input
@@ -421,12 +454,12 @@ export const Customers: React.FC<CustomersProps> = ({ showToast }) => {
                 required
                 value={formData.mobile}
                 onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                className="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-hidden"
+                className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-none focus:ring-1 focus:ring-slate-900 outline-hidden bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="block font-medium text-slate-700 mb-1">GST Number (GSTIN)</label>
+              <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">GST Number (GSTIN)</label>
               <input
                 type="text"
                 maxLength={15}
@@ -440,22 +473,22 @@ export const Customers: React.FC<CustomersProps> = ({ showToast }) => {
                   }
                   setFormData({ ...formData, gstin: val, state_code: stateCode });
                 }}
-                className="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-hidden font-mono uppercase"
+                className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-none focus:ring-1 focus:ring-slate-900 outline-hidden font-mono uppercase bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Drug License (DL) No.</label>
+              <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">Drug License (DL) No.</label>
               <input
                 type="text"
                 value={formData.dl_number}
                 onChange={(e) => setFormData({ ...formData, dl_number: e.target.value })}
-                className="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-hidden uppercase"
+                className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-none focus:ring-1 focus:ring-slate-900 outline-hidden uppercase bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
               />
             </div>
 
             <div className="sm:col-span-2">
-              <label className="block font-medium text-slate-700 mb-1">
+              <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Billing Address <span className="text-rose-500">*</span>
               </label>
               <input
@@ -463,87 +496,87 @@ export const Customers: React.FC<CustomersProps> = ({ showToast }) => {
                 required
                 value={formData.billing_address}
                 onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })}
-                className="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-hidden"
+                className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-none focus:ring-1 focus:ring-slate-900 outline-hidden bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="block font-medium text-slate-700 mb-1">State & Code</label>
+              <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">State & Code</label>
               <div className="grid grid-cols-3 gap-1">
                 <input
                   type="text"
                   value={formData.state}
                   onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                  className="col-span-2 px-2.5 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-hidden"
+                  className="col-span-2 px-2.5 py-1.5 border border-slate-300 dark:border-slate-700 rounded-none focus:ring-1 focus:ring-slate-900 outline-hidden bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                 />
                 <input
                   type="text"
                   value={formData.state_code}
                   onChange={(e) => setFormData({ ...formData, state_code: e.target.value })}
-                  className="px-2 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-hidden text-center font-mono"
+                  className="px-2 py-1.5 border border-slate-300 dark:border-slate-700 rounded-none focus:ring-1 focus:ring-slate-900 outline-hidden text-center font-mono bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block font-medium text-slate-700 mb-1">City</label>
+              <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">City</label>
               <input
                 type="text"
                 value={formData.city}
                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                className="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-hidden"
+                className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-none focus:ring-1 focus:ring-slate-900 outline-hidden bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Credit Limit (₹)</label>
+              <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">Credit Limit (₹)</label>
               <input
                 type="number"
                 min="0"
                 value={formData.credit_limit}
                 onFocus={(e) => e.target.select()}
                 onChange={(e) => setFormData({ ...formData, credit_limit: Number(e.target.value) })}
-                className="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-hidden"
+                className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-none focus:ring-1 focus:ring-slate-900 outline-hidden font-mono bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
               />
             </div>
 
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Credit Terms (Days)</label>
+              <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">Credit Terms (Days)</label>
               <input
                 type="number"
                 min="0"
                 value={formData.payment_terms_days}
                 onFocus={(e) => e.target.select()}
                 onChange={(e) => setFormData({ ...formData, payment_terms_days: Number(e.target.value) })}
-                className="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-hidden"
+                className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-none focus:ring-1 focus:ring-slate-900 outline-hidden font-mono bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
               />
             </div>
 
             {!editingId && (
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Opening Balance (₹)</label>
+                <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">Opening Balance (₹)</label>
                 <input
                   type="number"
                   value={formData.opening_balance}
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => setFormData({ ...formData, opening_balance: Number(e.target.value) })}
-                  className="w-full px-3 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-hidden"
+                  className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-none focus:ring-1 focus:ring-slate-900 outline-hidden font-mono bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                 />
               </div>
             )}
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-700">
             <button
               type="button"
               onClick={() => setIsFormOpen(false)}
-              className="px-3 py-1.5 border border-slate-300 rounded text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+              className="px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-none text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer uppercase font-bold tracking-wider"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-1.5 bg-blue-600 text-white rounded font-medium hover:bg-blue-700 transition cursor-pointer"
+              className="px-4 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-950 rounded-none font-bold hover:bg-black dark:hover:bg-slate-200 transition cursor-pointer uppercase tracking-wider"
             >
               {editingId ? 'Update Customer' : 'Save Customer'}
             </button>

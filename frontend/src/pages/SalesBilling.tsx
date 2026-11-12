@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   ShoppingCart, Search, Plus, Trash2, Printer, AlertTriangle,
-  UserPlus, CheckCircle2, FileText, ArrowRight, QrCode, MessageSquare, ExternalLink
+  UserPlus, CheckCircle2, FileText, ArrowRight, QrCode, MessageSquare, ExternalLink, FileSpreadsheet
 } from 'lucide-react';
 import { apiRequest, downloadFile } from '../api/client';
 import { QuickCustomerModal } from '../components/QuickCustomerModal';
@@ -46,8 +46,12 @@ export const SalesBilling: React.FC<SalesBillingProps> = ({ showToast }) => {
   const [notes, setNotes] = useState<string>('');
   const [allowExpiredOverride, setAllowExpiredOverride] = useState<boolean>(false);
 
-  // UPI QR Code Feature Toggle (Target: 9429041051)
+  // UPI QR Code Feature Toggle & Dynamic Payee
   const [includeUpiQr, setIncludeUpiQr] = useState<boolean>(true);
+  const [upiId, setUpiId] = useState<string>('aldholakia72-1@okaxis');
+
+  // Non-GST Bill Feature (Unregistered Customer / No GST reflection)
+  const [isNonGst, setIsNonGst] = useState<boolean>(false);
 
   // Billing Line Items
   const [items, setItems] = useState<BillingItem[]>([]);
@@ -56,6 +60,8 @@ export const SalesBilling: React.FC<SalesBillingProps> = ({ showToast }) => {
   const [productSearch, setProductSearch] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearchingProduct, setIsSearchingProduct] = useState(false);
+  const [showProductSuggestions, setShowProductSuggestions] = useState(false);
+  const [popularProducts, setPopularProducts] = useState<any[]>([]);
 
   // Quick Customer Modal
   const [isQuickCustomerOpen, setIsQuickCustomerOpen] = useState(false);
@@ -76,6 +82,10 @@ export const SalesBilling: React.FC<SalesBillingProps> = ({ showToast }) => {
 
   useEffect(() => {
     fetchCustomers();
+    // Preload top fast-moving products for instant search suggestions
+    apiRequest('/products?limit=10')
+      .then((res) => setPopularProducts(res.products || []))
+      .catch(() => {});
   }, []);
 
   // Update selected customer details
@@ -192,12 +202,14 @@ export const SalesBilling: React.FC<SalesBillingProps> = ({ showToast }) => {
     let sgst = 0;
     let igst = 0;
 
-    if (isInterstate) {
-      igst = round((taxable * it.gst_rate) / 100);
-    } else {
-      const halfRate = it.gst_rate / 2;
-      cgst = round((taxable * halfRate) / 100);
-      sgst = round((taxable * halfRate) / 100);
+    if (!isNonGst) {
+      if (isInterstate) {
+        igst = round((taxable * it.gst_rate) / 100);
+      } else {
+        const halfRate = it.gst_rate / 2;
+        cgst = round((taxable * halfRate) / 100);
+        sgst = round((taxable * halfRate) / 100);
+      }
     }
 
     const lineTotal = round(taxable + cgst + sgst + igst);
@@ -232,7 +244,10 @@ export const SalesBilling: React.FC<SalesBillingProps> = ({ showToast }) => {
       return;
     }
 
-    const text = `*PARAM PHARMA WHOLESALE TAX INVOICE*
+    const docTitle = inv.is_non_gst ? '*PARAM PHARMA BILL OF SUPPLY (NON-GST)*' : '*PARAM PHARMA WHOLESALE TAX INVOICE*';
+    const payUpi = inv.upi_id || upiId || 'aldholakia72-1@okaxis';
+
+    const text = `${docTitle}
 --------------------------------
 *Invoice No:* ${inv.invoice_number}
 *Date:* ${formatDate(inv.invoice_date)}
@@ -241,7 +256,7 @@ export const SalesBilling: React.FC<SalesBillingProps> = ({ showToast }) => {
 *Payment Status:* ${inv.payment_status} (Balance: ₹${inv.balance_amount.toFixed(2)})
 
 *PAY VIA UPI:*
-UPI ID: *aldholakia72-1@okaxis*
+UPI ID: *${payUpi}*
 Mobile / Contact: *9429041051*
 Exact Amount: ₹${inv.net_invoice_amount.toFixed(2)}
 
@@ -293,6 +308,8 @@ Thank you for your valuable business with Param Pharma!`;
         paid_amount: paidAmount,
         notes: notes,
         include_upi_qr: includeUpiQr,
+        is_non_gst: isNonGst,
+        upi_id: upiId,
         status: status,
         allow_expired_override: allowExpiredOverride,
         items: items.map((it) => ({
@@ -302,7 +319,7 @@ Thank you for your valuable business with Param Pharma!`;
           free_quantity: Number(it.free_quantity || 0),
           rate: Number(it.rate),
           discount_percent: Number(it.discount_percent || 0),
-          gst_rate: Number(it.gst_rate),
+          gst_rate: isNonGst ? 0 : Number(it.gst_rate),
         })),
       };
 
@@ -366,13 +383,25 @@ Thank you for your valuable business with Param Pharma!`;
               onClick={() =>
                 downloadFile(
                   `/sales/${lastInvoice.invoice.id}/pdf?include_qr=${lastInvoice.invoice.include_upi_qr}`,
-                  `Invoice_${lastInvoice.invoice.invoice_number}.pdf`
+                  `Invoice_${lastInvoice.invoice.invoice_number.replace('/', '_')}.pdf`
                 )
               }
               className="flex items-center gap-1.5 px-3 py-1.5 font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-900 dark:border-slate-600 rounded brutalist-btn cursor-pointer"
             >
               <Printer size={14} />
               <span>Re-Download PDF</span>
+            </button>
+            <button
+              onClick={() =>
+                downloadFile(
+                  `/sales/${lastInvoice.invoice.id}/excel`,
+                  `Invoice_${lastInvoice.invoice.invoice_number.replace('/', '_')}.xlsx`
+                )
+              }
+              className="flex items-center gap-1.5 px-3 py-1.5 font-bold bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 border border-slate-900 dark:border-slate-600 rounded brutalist-btn cursor-pointer"
+            >
+              <FileSpreadsheet size={14} />
+              <span>Export Excel</span>
             </button>
             <button
               onClick={() => setLastInvoice(null)}
@@ -390,28 +419,58 @@ Thank you for your valuable business with Param Pharma!`;
           <div className="flex items-center gap-2">
             <span className="p-1 rounded bg-blue-600 text-white"><ShoppingCart size={15} /></span>
             <h2 className="text-sm font-black text-slate-900 dark:text-white font-mono uppercase tracking-tight">
-              GST Sales Tax Billing Counter
+              {isNonGst ? 'Non-GST Retail Bill / Cash Memo' : 'GST Sales Tax Billing Counter'}
             </h2>
-            <span className="text-[10px] font-bold px-2 py-0.5 border border-slate-900 dark:border-slate-600 bg-blue-100 dark:bg-blue-950 text-blue-900 dark:text-blue-300">
-              {isInterstate ? 'Inter-State (IGST)' : 'Intra-State (CGST + SGST)'}
+            <span className={`text-[10px] font-bold px-2 py-0.5 border border-slate-900 dark:border-slate-600 ${
+              isNonGst 
+                ? 'bg-purple-100 dark:bg-purple-950 text-purple-900 dark:text-purple-300'
+                : 'bg-blue-100 dark:bg-blue-950 text-blue-900 dark:text-blue-300'
+            }`}>
+              {isNonGst ? 'Non-GST / URP Supply' : (isInterstate ? 'Inter-State (IGST)' : 'Intra-State (CGST + SGST)')}
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Pay Here UPI QR Code Toggle */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Non-GST Bill Toggle Button */}
             <button
               type="button"
-              onClick={() => setIncludeUpiQr(!includeUpiQr)}
+              onClick={() => setIsNonGst(!isNonGst)}
               className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold border-1.5 border-slate-900 dark:border-slate-600 brutalist-btn cursor-pointer ${
-                includeUpiQr
-                  ? 'bg-amber-300 dark:bg-amber-500 text-slate-900 font-black'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                isNonGst
+                  ? 'bg-purple-600 text-white font-black'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
               }`}
-              title="Toggle inclusion of UPI payment QR Code targeting aldholakia72-1@okaxis"
+              title="Toggle Non-GST Bill: Does NOT reflect in GSTR-1 or Output Tax liability"
             >
-              <QrCode size={13} />
-              <span>{includeUpiQr ? 'UPI QR: ON (aldholakia72-1@okaxis)' : 'UPI QR: OFF'}</span>
+              <FileText size={13} />
+              <span>{isNonGst ? 'Non-GST Mode: ON' : 'Non-GST Mode: OFF'}</span>
             </button>
+
+            {/* Dynamic UPI ID Selector and QR Toggle */}
+            <div className="flex items-center gap-1 border-1.5 border-slate-900 dark:border-slate-600 bg-amber-50 dark:bg-slate-800 px-2 py-0.5 text-xs">
+              <QrCode size={13} className="text-amber-700 dark:text-amber-400" />
+              <label className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase">UPI ID:</label>
+              <select
+                value={upiId}
+                onChange={(e) => setUpiId(e.target.value)}
+                className="bg-transparent text-[11px] font-mono font-bold text-slate-900 dark:text-white outline-hidden cursor-pointer"
+              >
+                <option value="aldholakia72-1@okaxis">aldholakia72-1@okaxis (Default)</option>
+                <option value="9429041051@okaxis">9429041051@okaxis (Axis)</option>
+                <option value="9429041051@paytm">9429041051@paytm</option>
+                <option value="9429041051@ybl">9429041051@ybl (PhonePe)</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => setIncludeUpiQr(!includeUpiQr)}
+                className={`ml-1 px-1.5 py-0.5 text-[10px] font-black ${
+                  includeUpiQr ? 'bg-amber-400 text-slate-950' : 'bg-slate-300 text-slate-600'
+                }`}
+                title="Toggle UPI QR inclusion on bill"
+              >
+                {includeUpiQr ? 'QR ON' : 'QR OFF'}
+              </button>
+            </div>
 
             <button
               onClick={() => setIsQuickCustomerOpen(true)}
@@ -498,19 +557,36 @@ Thank you for your valuable business with Param Pharma!`;
           <Search size={15} className="absolute left-3 top-3 text-slate-400" />
           <input
             type="text"
-            placeholder="Type Medicine Name or Generic Formula (e.g. Paracetamol, Amoxicillin, Augmentin, Dolo)... [F2]"
+            placeholder="Type Medicine Name or Generic Formula (e.g. Paracetamol, Amoxicillin, Augmentin, Dolo)... [F2] (Click for suggestions)"
             value={productSearch}
-            onChange={(e) => setProductSearch(e.target.value)}
+            onFocus={() => setShowProductSuggestions(true)}
+            onChange={(e) => {
+              setProductSearch(e.target.value);
+              setShowProductSuggestions(true);
+            }}
             className="w-full pl-9 pr-3 py-2 border-1.5 border-slate-900 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-bold placeholder:text-slate-400 focus:ring-2 focus:ring-blue-600 outline-hidden font-mono"
           />
 
-          {/* Autocomplete Dropdown */}
-          {searchResults.length > 0 && (
+          {/* Autocomplete Dropdown & Quick Suggestions */}
+          {(searchResults.length > 0 || (showProductSuggestions && popularProducts.length > 0)) && (
             <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-slate-700 shadow-2xl z-30 max-h-60 overflow-y-auto divide-y divide-slate-200 dark:divide-slate-800 text-xs">
-              {searchResults.map((p) => (
+              <div className="p-1.5 bg-slate-100 dark:bg-slate-800 flex justify-between items-center text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono">
+                <span>{searchResults.length > 0 ? `Matching Medicines (${searchResults.length})` : 'Popular / Fast-Moving Stock Suggestions'}</span>
+                <button
+                  type="button"
+                  onClick={() => setShowProductSuggestions(false)}
+                  className="text-slate-400 hover:text-slate-800 dark:hover:text-white cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+              {(searchResults.length > 0 ? searchResults : popularProducts).map((p) => (
                 <div
                   key={p.id}
-                  onClick={() => handleSelectProduct(p)}
+                  onClick={() => {
+                    handleSelectProduct(p);
+                    setShowProductSuggestions(false);
+                  }}
                   className="p-2.5 hover:bg-amber-50 dark:hover:bg-slate-800 transition cursor-pointer flex items-center justify-between"
                 >
                   <div>
@@ -743,7 +819,7 @@ Thank you for your valuable business with Param Pharma!`;
         </div>
 
         {/* Right Column: Tax Breakdown & Final Actions */}
-        <div className="p-3 bg-amber-50 dark:bg-slate-850 border-1.5 border-slate-900 dark:border-slate-700 space-y-1.5 font-mono">
+        <div className="p-3 bg-amber-50 dark:bg-slate-900 border-1.5 border-slate-900 dark:border-slate-700 space-y-1.5 font-mono">
           <div className="flex justify-between text-slate-700 dark:text-slate-300">
             <span>Gross Value:</span>
             <span>₹{totalGross.toFixed(2)}</span>
@@ -757,23 +833,18 @@ Thank you for your valuable business with Param Pharma!`;
             <span>₹{totalTaxable.toFixed(2)}</span>
           </div>
 
-          {isInterstate ? (
-            <div className="flex justify-between text-slate-700 dark:text-slate-300">
-              <span>Integrated GST (IGST):</span>
-              <span>₹{totalIgst.toFixed(2)}</span>
-            </div>
-          ) : (
-            <>
-              <div className="flex justify-between text-slate-700 dark:text-slate-300">
-                <span>Central GST (CGST):</span>
-                <span>₹{totalCgst.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-slate-700 dark:text-slate-300">
-                <span>State GST (SGST):</span>
-                <span>₹{totalSgst.toFixed(2)}</span>
-              </div>
-            </>
-          )}
+          <div className="flex justify-between text-slate-700 dark:text-slate-300">
+            <span>Central GST (CGST):</span>
+            <span>₹{totalCgst.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-slate-700 dark:text-slate-300">
+            <span>State GST (SGST):</span>
+            <span>₹{totalSgst.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-slate-700 dark:text-slate-300">
+            <span>Integrated GST (IGST):</span>
+            <span>₹{totalIgst.toFixed(2)}</span>
+          </div>
 
           <div className="flex justify-between text-slate-500 text-[10px]">
             <span>Round Off:</span>
