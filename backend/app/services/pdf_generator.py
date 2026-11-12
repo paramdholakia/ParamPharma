@@ -67,7 +67,7 @@ def generate_upi_qr_image(upi_id: str, payee_name: str, amount: float, invoice_n
     When qr_mode == "dynamic":
       Uses upi://pay?pa={clean_vpa}&pn={encoded_name}&am={amount:.2f}&cu=INR&tn={encoded_note}&mode=02
     """
-    clean_vpa = (upi_id or "aldholakia72-1@okaxis").strip()
+    clean_vpa = (upi_id or "aldholakia72@okicici").strip()
     encoded_name = quote(payee_name.strip())
     clean_inv = str(invoice_number).replace("/", "_").strip()
     encoded_note = quote(f"Bill_{clean_inv}")
@@ -496,7 +496,7 @@ def generate_invoice_pdf(company: dict, invoice: dict, items: list[dict], includ
     """
 
     # Check UPI QR toggle
-    active_upi_id = (invoice.get("upi_id") or company.get("upi_id") or "aldholakia72-1@okaxis").strip()
+    active_upi_id = (invoice.get("upi_id") or company.get("upi_id") or "aldholakia72@okicici").strip()
     phone_display = company.get("phone", "9429041051")
     qr_active = include_qr and invoice.get("include_upi_qr", True)
     if qr_active:

@@ -16,7 +16,17 @@ export async function apiRequest<T = any>(
     let errorDetail = 'Request failed';
     try {
       const errJson = await response.json();
-      errorDetail = errJson.detail || errJson.message || JSON.stringify(errJson);
+      if (Array.isArray(errJson.detail)) {
+        errorDetail = errJson.detail
+          .map((d: any) => d.msg ? `${d.loc ? d.loc.filter((l: any) => l !== 'body').join(' ') + ': ' : ''}${d.msg}` : JSON.stringify(d))
+          .join('; ');
+      } else if (typeof errJson.detail === 'string') {
+        errorDetail = errJson.detail;
+      } else if (errJson.message) {
+        errorDetail = errJson.message;
+      } else {
+        errorDetail = JSON.stringify(errJson);
+      }
     } catch {
       errorDetail = `HTTP ${response.status} ${response.statusText}`;
     }

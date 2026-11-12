@@ -16,7 +16,7 @@ class CompanySettings(Base):
     pincode = Column(String(20), default="370001")
     phone = Column(String(50), default="9429041051")
     email = Column(String(100), default="info@parampharma.com")
-    upi_id = Column(String(100), default="aldholakia72-1@okaxis")
+    upi_id = Column(String(100), default="aldholakia72@okicici")
     gstin = Column(String(15), default="24AABCP1234F1Z5")
     pan = Column(String(10), default="AABCP1234F")
     dl_number_20b = Column(String(50), default="GUJ-DL-20B-12345")

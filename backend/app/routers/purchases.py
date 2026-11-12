@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, or_
@@ -26,14 +26,38 @@ class PurchaseInvoiceItemSchema(BaseModel):
     batch_number: str
     mfg_date: Optional[date] = None
     expiry_date: date
-    mrp: float
-    purchase_rate: float
+    mrp: float = 0.0
+    purchase_rate: float = 0.0
     ptr: Optional[float] = None
     pts: Optional[float] = None
-    quantity: int
+    quantity: int = 1
     free_quantity: int = 0
     discount_percent: float = 0.0
     gst_rate: float = 12.0
+
+    @field_validator("mfg_date", mode="before")
+    def safe_mfg_date(cls, v):
+        if v == "" or v is None:
+            return None
+        return v
+
+    @field_validator("mrp", "purchase_rate", "ptr", "pts", "discount_percent", "gst_rate", mode="before")
+    def safe_item_floats(cls, v):
+        if v == "" or v is None:
+            return 0.0
+        try:
+            return float(v)
+        except Exception:
+            return 0.0
+
+    @field_validator("quantity", "free_quantity", mode="before")
+    def safe_item_ints(cls, v):
+        if v == "" or v is None:
+            return 1
+        try:
+            return max(0, int(float(v)))
+        except Exception:
+            return 1
 
 class PurchaseInvoiceCreateSchema(BaseModel):
     supplier_id: int
@@ -46,6 +70,21 @@ class PurchaseInvoiceCreateSchema(BaseModel):
     notes: Optional[str] = ""
     status: str = "Finalized"
     items: List[PurchaseInvoiceItemSchema]
+
+    @field_validator("due_date", mode="before")
+    def safe_due_date(cls, v):
+        if v == "" or v is None:
+            return None
+        return v
+
+    @field_validator("paid_amount", mode="before")
+    def safe_paid_amount(cls, v):
+        if v == "" or v is None:
+            return 0.0
+        try:
+            return float(v)
+        except Exception:
+            return 0.0
 
 @router.get("")
 def list_purchases(

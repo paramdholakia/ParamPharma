@@ -12,7 +12,7 @@ class TestLedgersVouchersSync(unittest.TestCase):
     def test_universal_gpay_upi_qr(self):
         """Verify Universal Google Pay QR URI generation avoiding 'Invalid UPI ID' rejection."""
         buf = generate_upi_qr_image(
-            upi_id="aldholakia72-1@okaxis",
+            upi_id="aldholakia72@okicici",
             payee_name="PARAM PHARMA",
             amount=1500.0,
             invoice_number="PP26/1",

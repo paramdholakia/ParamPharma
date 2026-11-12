@@ -413,7 +413,7 @@ def export_invoice_excel(company: dict, invoice: dict, items: list[dict]) -> byt
 
     u_row = b_row + 1
     ws.merge_cells(f"A{u_row}:J{u_row}")
-    active_upi = invoice.get("upi_id") or company.get("upi_id") or "aldholakia72-1@okaxis"
+    active_upi = invoice.get("upi_id") or company.get("upi_id") or "aldholakia72@okicici"
     ws[f"A{u_row}"] = f"UPI Payment Address: {active_upi} (Mobile: {comp_phone})"
     ws[f"A{u_row}"].font = meta_label_font
 

@@ -29,7 +29,7 @@ All notable changes to the Param Pharma Wholesale ERP system are documented in t
 ## [v2.0.0] — November 12, 2026: Enhancements & Statutory Alignment
 - Implemented Excel (`.xlsx`) and PDF invoice export.
 - Explicit statutory tax breakdown for CGST, SGST, and IGST with HSN Tax Analysis table.
-- NPCI-compliant dynamic UPI QR Code generator (`aldholakia72-1@okaxis` / `9429041051`).
+- NPCI-compliant dynamic UPI QR Code generator (`aldholakia72@okicici` / `9429041051`).
 - Non-GST retail billing mode ("Bill of Supply").
 - Editable Purchase Register with automatic batch quantity and supplier ledger rollback.
 - Set P&L Tax Provision strictly to 0% per client instruction.

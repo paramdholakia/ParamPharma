@@ -207,7 +207,7 @@ def create_sales_invoice(data: SalesInvoiceCreateSchema, db: Session = Depends(g
         notes=data.notes,
         include_upi_qr=data.include_upi_qr,
         is_non_gst=data.is_non_gst,
-        upi_id=data.upi_id or company.upi_id or "aldholakia72-1@okaxis"
+        upi_id=data.upi_id or company.upi_id or "aldholakia72@okicici"
     )
     db.add(invoice)
     db.flush()

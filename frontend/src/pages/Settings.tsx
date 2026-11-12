@@ -372,7 +372,7 @@ export const Settings: React.FC<SettingsProps> = ({ showToast }) => {
                   required
                   value={company.upi_id || ''}
                   onChange={(e) => setCompany({ ...company, upi_id: e.target.value })}
-                  placeholder="e.g. aldholakia72-1@okaxis"
+                  placeholder="e.g. aldholakia72@okicici"
                   className="w-full px-2.5 py-1.5 border border-slate-900 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-400 font-bold outline-hidden font-mono"
                 />
               </div>

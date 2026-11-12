@@ -48,7 +48,7 @@ export const SalesBilling: React.FC<SalesBillingProps> = ({ showToast }) => {
 
   // UPI QR Code Feature Toggle & Dynamic Payee
   const [includeUpiQr, setIncludeUpiQr] = useState<boolean>(true);
-  const [upiId, setUpiId] = useState<string>('aldholakia72-1@okaxis');
+  const [upiId, setUpiId] = useState<string>('aldholakia72@okicici');
 
   // Non-GST Bill Feature (Unregistered Customer / No GST reflection)
   const [isNonGst, setIsNonGst] = useState<boolean>(false);
@@ -250,7 +250,7 @@ export const SalesBilling: React.FC<SalesBillingProps> = ({ showToast }) => {
     }
 
     const docTitle = inv.is_non_gst ? '*PARAM PHARMA BILL OF SUPPLY (NON-GST)*' : '*PARAM PHARMA WHOLESALE TAX INVOICE*';
-    const payUpi = inv.upi_id || upiId || 'aldholakia72-1@okaxis';
+    const payUpi = inv.upi_id || upiId || 'aldholakia72@okicici';
 
     const text = `${docTitle}
 --------------------------------
@@ -460,11 +460,11 @@ Thank you for your valuable business with Param Pharma!`;
                 onChange={(e) => setUpiId(e.target.value)}
                 className="bg-transparent text-[11px] font-mono font-bold text-slate-900 dark:text-white outline-hidden cursor-pointer"
               >
-                <option value="aldholakia72-1@okaxis">aldholakia72-1@okaxis (GPay Verified)</option>
+                <option value="aldholakia72@okicici">aldholakia72@okicici (Primary)</option>
                 <option value="9429041051@okaxis">9429041051@okaxis (Axis)</option>
                 <option value="9429041051@paytm">9429041051@paytm</option>
                 <option value="9429041051@ybl">9429041051@ybl (PhonePe)</option>
-                {upiId && !['aldholakia72-1@okaxis', '9429041051@okaxis', '9429041051@paytm', '9429041051@ybl'].includes(upiId) && (
+                {upiId && !['aldholakia72@okicici', '9429041051@okaxis', '9429041051@paytm', '9429041051@ybl'].includes(upiId) && (
                   <option value={upiId}>{upiId}</option>
                 )}
               </select>

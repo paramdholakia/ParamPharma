@@ -10,7 +10,7 @@ Engineered with a **Windows-first desktop architecture**, **React 19 + TypeScrip
 
 ### 1. ⚡ Pharmaceutical Sales Billing (GST Invoicing)
 - **Keyboard-Driven POS**: Fast search by brand name, generic formulation, or batch number. Shortcut `[F2]` anywhere for instant billing.
-- **Dynamic UPI Payment QR Code**: Generates on-screen & printable dynamic Bharat UPI QR codes (`aldholakia72-1@okaxis` / `9429041051`) with invoice-exact payable amounts for instant customer payments via GPay, PhonePe, Paytm, or BHIM.
+- **Dynamic UPI Payment QR Code**: Generates on-screen & printable dynamic Bharat UPI QR codes (`aldholakia72@okicici` / `9429041051`) with invoice-exact payable amounts for instant customer payments via GPay, PhonePe, Paytm, or BHIM.
 - **WhatsApp Direct Invoicing**: One-click dispatch of invoice summaries, total amounts, and payment links directly to the customer's WhatsApp mobile number.
 - **Flexible Pricing & Schemes**: Supports Free Quantity Schemes (e.g. 10 + 1 Free), item-wise cash discounts, and editable GST rates (0%, 5%, 12%, 18%, 28%).
 - **Intra-State & Inter-State GST Engine**: Automatic calculation of CGST + SGST (intra-state) or IGST (inter-state) based on customer state codes.
@@ -139,7 +139,7 @@ Open your browser at **`http://localhost:5173`**. The backend API documentation 
 - **Admin Password**: `admin123`
 - **Company Trading Name**: `PARAM PHARMA`
 - **Official Mobile**: `9429041051`
-- **Primary UPI ID**: `aldholakia72-1@okaxis`
+- **Primary UPI ID**: `aldholakia72@okicici`
 - **Financial Year**: `2026-2027`
 
 ---

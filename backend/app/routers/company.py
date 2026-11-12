@@ -30,7 +30,7 @@ class CompanyUpdateSchema(BaseModel):
     invoice_prefix: str
     financial_year: str
     terms_conditions: str
-    upi_id: Optional[str] = "aldholakia72-1@okaxis"
+    upi_id: Optional[str] = "aldholakia72@okicici"
 
 @router.get("")
 def get_company(db: Session = Depends(get_db)):

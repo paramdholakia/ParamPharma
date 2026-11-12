@@ -121,17 +121,45 @@ export const Products: React.FC<ProductsProps> = ({ showToast }) => {
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.medicine_name.trim()) {
+      showToast('Please enter Medicine Name', 'error');
+      return;
+    }
+    if (!formData.manufacturer.trim()) {
+      showToast('Please enter Manufacturer Name', 'error');
+      return;
+    }
+
+    const cleanPayload = {
+      ...formData,
+      medicine_name: formData.medicine_name.trim(),
+      generic_name: (formData.generic_name || '').trim(),
+      brand_name: (formData.brand_name || '').trim(),
+      manufacturer: formData.manufacturer.trim(),
+      hsn_code: (formData.hsn_code || '30049099').trim(),
+      packing: (formData.packing || '10x10 Tablets').trim(),
+      unit: (formData.unit || 'BOX').trim().toUpperCase(),
+      mrp: Math.max(0, Number(formData.mrp) || 0),
+      ptr: Math.max(0, Number(formData.ptr) || 0),
+      pts: Math.max(0, Number(formData.pts) || 0),
+      gst_rate: Number(formData.gst_rate) || 12.0,
+      min_stock_level: Math.max(0, Math.round(Number(formData.min_stock_level) || 0)),
+      reorder_level: Math.max(0, Math.round(Number(formData.reorder_level) || 0)),
+      product_description: (formData.product_description || '').trim(),
+      status: formData.status || 'Active'
+    };
+
     try {
       if (editingId) {
         await apiRequest(`/products/${editingId}`, {
           method: 'PUT',
-          body: JSON.stringify(formData),
+          body: JSON.stringify(cleanPayload),
         });
         showToast('Product updated successfully', 'success');
       } else {
         await apiRequest('/products', {
           method: 'POST',
-          body: JSON.stringify(formData),
+          body: JSON.stringify(cleanPayload),
         });
         showToast('Product added to master catalog', 'success');
       }

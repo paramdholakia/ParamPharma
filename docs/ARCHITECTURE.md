@@ -50,7 +50,7 @@ Every feature below has been inspected in the active codebase:
 
 ### Transactions & Billing
 - **Sales Billing Counter (`SalesBilling.tsx`, `sales.py`)**: Keyboard-driven billing (`[F2]` shortcut), instant medicine search, batch selection, scheme free goods (e.g. 10+1 Free), cash discounts, and real-time CGST/SGST/IGST tax calculation.
-  - **Dynamic UPI QR Code**: Generates NPCI-compliant UPI QR codes with invoice-exact amounts and dynamic VPA selection (`aldholakia72-1@okaxis`, `9429041051@okaxis`, etc.).
+  - **Dynamic UPI QR Code**: Generates NPCI-compliant UPI QR codes with invoice-exact amounts and dynamic VPA selection (`aldholakia72@okicici`, `9429041051@okaxis`, etc.).
   - **WhatsApp Direct Invoicing**: Generates pre-formatted WhatsApp payment and billing messages with a single click.
   - **Non-GST / Retail Mode**: Generates "BILL OF SUPPLY / CASH MEMO" bills for unregistered customers with zero tax liability.
   - **Dual Export**: Generates both statutory ReportLab PDF and OpenPyXL Excel invoices.

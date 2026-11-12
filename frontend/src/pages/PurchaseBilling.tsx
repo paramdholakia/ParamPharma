@@ -188,6 +188,11 @@ export const PurchaseBilling: React.FC<PurchaseBillingProps> = ({ showToast }) =
         showToast(`Please enter Expiry Date for Batch '${it.batch_number}'`, 'error');
         return;
       }
+      const qty = Math.round(Number(it.quantity) || 0);
+      if (qty <= 0) {
+        showToast(`Please enter a valid Quantity (> 0) for '${it.product_name}'`, 'error');
+        return;
+      }
     }
 
     setSavingPurchase(true);
@@ -198,20 +203,20 @@ export const PurchaseBilling: React.FC<PurchaseBillingProps> = ({ showToast }) =
         purchase_date: purchaseDate,
         payment_terms: paymentTerms,
         payment_mode: paymentMode,
-        paid_amount: paidAmount,
-        notes: notes,
+        paid_amount: Math.max(0, Number(paidAmount) || 0),
+        notes: notes || '',
         items: items.map((it) => ({
-          product_id: it.product_id,
-          batch_number: it.batch_number.trim(),
+          product_id: Number(it.product_id),
+          batch_number: it.batch_number.trim().toUpperCase(),
           expiry_date: it.expiry_date,
-          mrp: Number(it.mrp),
-          purchase_rate: Number(it.purchase_rate),
-          ptr: Number(it.ptr),
-          pts: Number(it.pts),
-          quantity: Number(it.quantity),
-          free_quantity: Number(it.free_quantity || 0),
-          discount_percent: Number(it.discount_percent || 0),
-          gst_rate: Number(it.gst_rate),
+          mrp: Math.max(0, Number(it.mrp) || 0),
+          purchase_rate: Math.max(0, Number(it.purchase_rate) || 0),
+          ptr: Math.max(0, Number(it.ptr) || Math.round((Number(it.purchase_rate) * 1.15) * 100) / 100),
+          pts: Math.max(0, Number(it.pts) || Math.round((Number(it.purchase_rate) * 1.05) * 100) / 100),
+          quantity: Math.max(1, Math.round(Number(it.quantity) || 1)),
+          free_quantity: Math.max(0, Math.round(Number(it.free_quantity) || 0)),
+          discount_percent: Math.max(0, Number(it.discount_percent) || 0),
+          gst_rate: Number(it.gst_rate) || 12.0,
         })),
       };
 
@@ -220,7 +225,8 @@ export const PurchaseBilling: React.FC<PurchaseBillingProps> = ({ showToast }) =
         body: JSON.stringify(payload),
       });
 
-      showToast(`Purchase inwarded successfully! Internal Ref: ${res.purchase.internal_purchase_number}`, 'success');
+      const entryRef = res.purchase?.purchase_entry_number || res.purchase?.supplier_invoice_number || res.purchase?.id || 'Saved';
+      showToast(`Purchase inwarded successfully! Entry Ref: ${entryRef}`, 'success');
       setItems([]);
       setSupplierInvoiceNumber('');
       setSelectedSupplierId('');

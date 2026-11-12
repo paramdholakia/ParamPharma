@@ -412,7 +412,7 @@ def clean_wipe_both_databases(db_session) -> Dict[str, Any]:
     """
     Completely wipe dummy master and transactional data from SQLite AND MongoDB Atlas.
     Leaves clean company profile with user's Param Pharma credentials, phone 9429041051,
-    UPI aldholakia72-1@okaxis, admin user, and standard expense categories.
+    UPI aldholakia72@okicici, admin user, and standard expense categories.
     """
     from backend.app.models import (
         CompanySettings, Customer, Supplier, Product, ProductBatch,
@@ -462,7 +462,7 @@ def clean_wipe_both_databases(db_session) -> Dict[str, Any]:
         comp.legal_name = "Param Pharma Wholesale & Distribution"
         comp.phone = "9429041051"
         comp.email = "paramdholakia@gmail.com"
-        comp.upi_id = "aldholakia72-1@okaxis"
+        comp.upi_id = "aldholakia72@okicici"
         comp.address_line1 = "Pharmaceutical Wholesale Market"
         comp.address_line2 = "Opp. Civil Hospital"
         comp.city = "Bhuj, Kutch"
@@ -543,6 +543,6 @@ def clean_wipe_both_databases(db_session) -> Dict[str, Any]:
         "message": "All dummy data removed cleanly. Database reset to clean state for real data entry.",
         "company": "PARAM PHARMA",
         "phone": "9429041051",
-        "upi_id": "aldholakia72-1@okaxis",
+        "upi_id": "aldholakia72@okicici",
         "cluster": CLUSTER_NAME
     }

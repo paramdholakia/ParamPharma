@@ -95,7 +95,7 @@ export const SalesRegister: React.FC<SalesRegisterProps> = ({ showToast }) => {
 *Payment Status:* ${inv.payment_status} (Balance: ₹${inv.balance_amount.toFixed(2)})
 
 *UPI PAYMENT ADDRESS:*
-UPI ID: *aldholakia72-1@okaxis*
+UPI ID: *aldholakia72@okicici*
 Phone: *9429041051*
 Exact Amount: ₹${inv.net_invoice_amount.toFixed(2)}
 

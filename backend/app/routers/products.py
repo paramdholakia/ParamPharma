@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, desc, func
@@ -26,6 +26,24 @@ class ProductCreateSchema(BaseModel):
     reorder_level: int = 20
     product_description: Optional[str] = ""
     status: str = "Active"
+
+    @field_validator("mrp", "ptr", "pts", "gst_rate", mode="before")
+    def safe_product_floats(cls, v):
+        if v == "" or v is None:
+            return 0.0
+        try:
+            return float(v)
+        except Exception:
+            return 0.0
+
+    @field_validator("min_stock_level", "reorder_level", mode="before")
+    def safe_product_ints(cls, v):
+        if v == "" or v is None:
+            return 10
+        try:
+            return int(float(v))
+        except Exception:
+            return 10
 
 @router.get("")
 def list_products(
@@ -68,8 +86,11 @@ def list_products(
 def create_product(data: ProductCreateSchema, db: Session = Depends(get_db)):
     code = data.product_code
     if not code:
-        count = db.query(Product).count() + 1
-        code = f"MED{count:03d}"
+        max_id = db.query(func.coalesce(func.max(Product.id), 0)).scalar() + 1
+        code = f"MED{max_id:04d}"
+        while db.query(Product).filter(Product.product_code == code).first():
+            max_id += 1
+            code = f"MED{max_id:04d}"
 
     product = Product(
         product_code=code,

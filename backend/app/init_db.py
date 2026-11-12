@@ -35,7 +35,7 @@ def init_database():
                 pincode="370001",
                 phone="9429041051",
                 email="paramdholakia@gmail.com",
-                upi_id="aldholakia72-1@okaxis",
+                upi_id="aldholakia72@okicici",
                 gstin="24AABCP1234F1Z5",
                 pan="AABCP1234F",
                 dl_number_20b="GUJ-DL-20B-12345",
