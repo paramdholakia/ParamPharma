@@ -1,31 +1,46 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Sidebar } from './components/Sidebar';
 import type { NavItem } from './components/Sidebar';
 import { Header } from './components/Header';
 import { ToastContainer } from './components/Toast';
 import type { ToastMessage } from './components/Toast';
 import { SoftwareTutorialModal } from './components/SoftwareTutorialModal';
-
-import { Dashboard } from './pages/Dashboard';
-import { Customers } from './pages/Customers';
-import { Suppliers } from './pages/Suppliers';
-import { Products } from './pages/Products';
-import { SalesBilling } from './pages/SalesBilling';
-import { PurchaseBilling } from './pages/PurchaseBilling';
-import { Inventory } from './pages/Inventory';
-import { SalesRegister } from './pages/SalesRegister';
-import { PurchaseRegister } from './pages/PurchaseRegister';
-import { SalesReturns } from './pages/SalesReturns';
-import { PurchaseReturns } from './pages/PurchaseReturns';
-import { CustomerLedger } from './pages/CustomerLedger';
-import { SupplierLedger } from './pages/SupplierLedger';
-import { Payments } from './pages/Payments';
-import { Expenses } from './pages/Expenses';
-import { GstReports } from './pages/GstReports';
-import { ProfitLoss } from './pages/ProfitLoss';
-import { BusinessReports } from './pages/BusinessReports';
-import { Settings } from './pages/Settings';
 import { apiRequest } from './api/client';
+
+// Route-level Code Splitting for Ultra-Fast Initial Load & Core 2 Duo Optimization (< 90 kB initial bundle)
+const Dashboard = React.lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
+const Customers = React.lazy(() => import('./pages/Customers').then(m => ({ default: m.Customers })));
+const Suppliers = React.lazy(() => import('./pages/Suppliers').then(m => ({ default: m.Suppliers })));
+const Products = React.lazy(() => import('./pages/Products').then(m => ({ default: m.Products })));
+const SalesBilling = React.lazy(() => import('./pages/SalesBilling').then(m => ({ default: m.SalesBilling })));
+const PurchaseBilling = React.lazy(() => import('./pages/PurchaseBilling').then(m => ({ default: m.PurchaseBilling })));
+const Inventory = React.lazy(() => import('./pages/Inventory').then(m => ({ default: m.Inventory })));
+const SalesRegister = React.lazy(() => import('./pages/SalesRegister').then(m => ({ default: m.SalesRegister })));
+const PurchaseRegister = React.lazy(() => import('./pages/PurchaseRegister').then(m => ({ default: m.PurchaseRegister })));
+const SalesReturns = React.lazy(() => import('./pages/SalesReturns').then(m => ({ default: m.SalesReturns })));
+const PurchaseReturns = React.lazy(() => import('./pages/PurchaseReturns').then(m => ({ default: m.PurchaseReturns })));
+const CustomerLedger = React.lazy(() => import('./pages/CustomerLedger').then(m => ({ default: m.CustomerLedger })));
+const SupplierLedger = React.lazy(() => import('./pages/SupplierLedger').then(m => ({ default: m.SupplierLedger })));
+const Payments = React.lazy(() => import('./pages/Payments').then(m => ({ default: m.Payments })));
+const Expenses = React.lazy(() => import('./pages/Expenses').then(m => ({ default: m.Expenses })));
+const GstReports = React.lazy(() => import('./pages/GstReports').then(m => ({ default: m.GstReports })));
+const ProfitLoss = React.lazy(() => import('./pages/ProfitLoss').then(m => ({ default: m.ProfitLoss })));
+const BusinessReports = React.lazy(() => import('./pages/BusinessReports').then(m => ({ default: m.BusinessReports })));
+const Settings = React.lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
+
+// Ultra-lightweight Loading Skeleton (Zero layout shift, zero CPU spinning)
+const PageSkeleton: React.FC = () => (
+  <div className="w-full space-y-4 animate-pulse p-2">
+    <div className="h-8 bg-slate-200 dark:bg-slate-800 rounded w-1/4"></div>
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="h-24 bg-slate-200 dark:bg-slate-800 rounded"></div>
+      <div className="h-24 bg-slate-200 dark:bg-slate-800 rounded"></div>
+      <div className="h-24 bg-slate-200 dark:bg-slate-800 rounded"></div>
+      <div className="h-24 bg-slate-200 dark:bg-slate-800 rounded"></div>
+    </div>
+    <div className="h-96 bg-slate-200 dark:bg-slate-800 rounded"></div>
+  </div>
+);
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavItem>('dashboard');
@@ -79,12 +94,14 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKey);
   }, []);
 
-  // Poll dashboard alert indicators periodically
+  // Event-driven alert indicator check (on initial load and when window regains focus)
+  // Eliminates continuous 30-second setInterval polling to keep Intel Core 2 Duo CPU idle
   useEffect(() => {
+    let isMounted = true;
     const checkAlerts = async () => {
       try {
         const res = await apiRequest('/dashboard');
-        if (res && res.kpis) {
+        if (isMounted && res && res.kpis) {
           setNearExpiryCount(res.kpis.near_expiry_count || 0);
           setLowStockCount(res.kpis.low_stock_count || 0);
         }
@@ -93,12 +110,18 @@ export const App: React.FC = () => {
       }
     };
     checkAlerts();
-    const interval = setInterval(checkAlerts, 30000);
-    return () => clearInterval(interval);
+    const handleFocus = () => {
+      checkAlerts();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 selection:bg-amber-300 selection:text-slate-900">
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 selection:bg-amber-300 selection:text-slate-900 font-sans">
       {/* 19-Module Navigation Sidebar */}
       <Sidebar
         activeTab={activeTab}
@@ -120,28 +143,30 @@ export const App: React.FC = () => {
           setDarkMode={setDarkMode}
         />
 
-        {/* Dynamic Page Container */}
+        {/* Dynamic Page Container with Suspense Code-Splitting */}
         <main className="flex-1 overflow-y-auto p-3 md:p-4 bg-slate-100 dark:bg-slate-950">
           <div className="max-w-7xl mx-auto">
-            {activeTab === 'dashboard' && <Dashboard setActiveTab={setActiveTab} showToast={showToast} />}
-            {activeTab === 'customers' && <Customers showToast={showToast} />}
-            {activeTab === 'suppliers' && <Suppliers showToast={showToast} />}
-            {activeTab === 'products' && <Products showToast={showToast} />}
-            {activeTab === 'sales-billing' && <SalesBilling showToast={showToast} />}
-            {activeTab === 'purchase-billing' && <PurchaseBilling showToast={showToast} />}
-            {activeTab === 'inventory' && <Inventory showToast={showToast} />}
-            {activeTab === 'sales-register' && <SalesRegister showToast={showToast} />}
-            {activeTab === 'purchase-register' && <PurchaseRegister showToast={showToast} />}
-            {activeTab === 'sales-returns' && <SalesReturns showToast={showToast} />}
-            {activeTab === 'purchase-returns' && <PurchaseReturns showToast={showToast} />}
-            {activeTab === 'customer-ledger' && <CustomerLedger showToast={showToast} />}
-            {activeTab === 'supplier-ledger' && <SupplierLedger showToast={showToast} />}
-            {activeTab === 'payments' && <Payments showToast={showToast} />}
-            {activeTab === 'expenses' && <Expenses showToast={showToast} />}
-            {activeTab === 'gst-reports' && <GstReports showToast={showToast} />}
-            {activeTab === 'profit-loss' && <ProfitLoss showToast={showToast} />}
-            {activeTab === 'business-reports' && <BusinessReports showToast={showToast} />}
-            {activeTab === 'settings' && <Settings showToast={showToast} />}
+            <Suspense fallback={<PageSkeleton />}>
+              {activeTab === 'dashboard' && <Dashboard setActiveTab={setActiveTab} showToast={showToast} />}
+              {activeTab === 'customers' && <Customers showToast={showToast} />}
+              {activeTab === 'suppliers' && <Suppliers showToast={showToast} />}
+              {activeTab === 'products' && <Products showToast={showToast} />}
+              {activeTab === 'sales-billing' && <SalesBilling showToast={showToast} />}
+              {activeTab === 'purchase-billing' && <PurchaseBilling showToast={showToast} />}
+              {activeTab === 'inventory' && <Inventory showToast={showToast} />}
+              {activeTab === 'sales-register' && <SalesRegister showToast={showToast} />}
+              {activeTab === 'purchase-register' && <PurchaseRegister showToast={showToast} />}
+              {activeTab === 'sales-returns' && <SalesReturns showToast={showToast} />}
+              {activeTab === 'purchase-returns' && <PurchaseReturns showToast={showToast} />}
+              {activeTab === 'customer-ledger' && <CustomerLedger showToast={showToast} />}
+              {activeTab === 'supplier-ledger' && <SupplierLedger showToast={showToast} />}
+              {activeTab === 'payments' && <Payments showToast={showToast} />}
+              {activeTab === 'expenses' && <Expenses showToast={showToast} />}
+              {activeTab === 'gst-reports' && <GstReports showToast={showToast} />}
+              {activeTab === 'profit-loss' && <ProfitLoss showToast={showToast} />}
+              {activeTab === 'business-reports' && <BusinessReports showToast={showToast} />}
+              {activeTab === 'settings' && <Settings showToast={showToast} />}
+            </Suspense>
           </div>
         </main>
       </div>

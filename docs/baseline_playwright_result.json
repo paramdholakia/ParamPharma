@@ -1,0 +1,14 @@
+{
+  "loadTimeMs": 1253,
+  "domNodeCount": 376,
+  "consoleErrors": [],
+  "pageErrors": [],
+  "viewportsTested": [
+    "desktop_1080p (1920x1080)",
+    "laptop_1366x768 (1366x768)",
+    "desktop_720p (1280x720)",
+    "legacy_1024x768 (1024x768)",
+    "tablet_portrait (768x1024)",
+    "mobile_390x844 (390x844)"
+  ]
+}
