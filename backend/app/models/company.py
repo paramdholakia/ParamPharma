@@ -1,0 +1,43 @@
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, Text, DateTime
+from backend.app.database import Base
+
+class CompanySettings(Base):
+    __tablename__ = "company_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_name = Column(String(150), nullable=False, default="Param Pharma")
+    legal_name = Column(String(150), default="Param Pharma Wholesale & Distribution")
+    address_line1 = Column(String(200), default="Station Road, Pharmaceutical Market")
+    address_line2 = Column(String(200), default="Opp. Civil Hospital")
+    city = Column(String(100), default="Ahmedabad")
+    state = Column(String(100), default="Gujarat")
+    state_code = Column(String(10), default="24")
+    pincode = Column(String(20), default="380001")
+    phone = Column(String(50), default="9429041051")
+    email = Column(String(100), default="info@parampharma.com")
+    upi_id = Column(String(100), default="aldholakia72-1@okaxis")
+    gstin = Column(String(15), default="24AABCP1234F1Z5")
+    pan = Column(String(10), default="AABCP1234F")
+    dl_number_20b = Column(String(50), default="GUJ-DL-20B-12345")
+    dl_number_21b = Column(String(50), default="GUJ-DL-21B-12346")
+    bank_name = Column(String(100), default="State Bank of India")
+    bank_account_no = Column(String(50), default="300123456789")
+    bank_ifsc = Column(String(20), default="SBIN0001234")
+    bank_branch = Column(String(100), default="Main Branch")
+    invoice_prefix = Column(String(10), default="PP/")
+    next_invoice_num = Column(Integer, default=1)
+    purchase_prefix = Column(String(10), default="PUR/")
+    next_purchase_num = Column(Integer, default=1)
+    credit_note_prefix = Column(String(10), default="CN/")
+    next_credit_note_num = Column(Integer, default=1)
+    debit_note_prefix = Column(String(10), default="DN/")
+    next_debit_note_num = Column(Integer, default=1)
+    receipt_prefix = Column(String(10), default="RCP/")
+    next_receipt_num = Column(Integer, default=1)
+    voucher_prefix = Column(String(10), default="VCH/")
+    next_voucher_num = Column(Integer, default=1)
+    financial_year = Column(String(20), default="2026-2027")
+    terms_conditions = Column(Text, default="1. Goods once sold will not be taken back without prior inspection.\n2. Interest @ 18% p.a. will be charged if payment not received within due date.\n3. Subject to local jurisdiction only.\n4. Certified that all drugs mentioned comply with provisions of the Drugs & Cosmetics Act.")
+    logo_path = Column(String(255), nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
