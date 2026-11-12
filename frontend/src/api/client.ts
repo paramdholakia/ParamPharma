@@ -84,3 +84,36 @@ export async function downloadFile(endpoint: string, fallbackFilename: string) {
   a.remove();
   window.URL.revokeObjectURL(downloadUrl);
 }
+
+/**
+ * Loads a PDF document and opens it in a new browser tab/viewer ready for 1-click printing.
+ */
+export async function printPdf(endpoint: string) {
+  const url = `${API_BASE}${endpoint}${endpoint.includes('?') ? '&' : '?'}disposition=inline`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    let err = 'Failed to load document for printing';
+    try {
+      const j = await response.json();
+      err = j.detail || err;
+    } catch {}
+    throw new Error(err);
+  }
+
+  const blob = await response.blob();
+  const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+  const blobUrl = window.URL.createObjectURL(pdfBlob);
+
+  const printWindow = window.open(blobUrl, '_blank');
+  if (printWindow) {
+    printWindow.focus();
+  } else {
+    // If pop-up blocked by browser security, use anchor tag
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+}

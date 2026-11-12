@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BookOpen, Calendar, Search, Printer, FileText, CheckSquare, Square, Download } from 'lucide-react';
-import { apiRequest, downloadFile } from '../api/client';
+import { apiRequest, downloadFile, printPdf } from '../api/client';
 import { formatDate } from '../utils/date';
 
 interface CustomerLedgerProps {
@@ -66,6 +66,19 @@ export const CustomerLedger: React.FC<CustomerLedgerProps> = ({ showToast }) => 
     }
   };
 
+  const handlePrintFullLedgerPdf = async () => {
+    if (!selectedCustomerId) return;
+    try {
+      let endpoint = `/ledgers/customer/${selectedCustomerId}/pdf?`;
+      if (fromDate) endpoint += `&from_date=${fromDate}`;
+      if (toDate) endpoint += `&to_date=${toDate}`;
+      await printPdf(endpoint);
+      showToast('Opened Statement of Account for printing', 'info');
+    } catch (err: any) {
+      showToast(err.message || 'Print failed', 'error');
+    }
+  };
+
   const handleDownloadFullLedgerPdf = async () => {
     if (!selectedCustomerId) return;
     try {
@@ -77,6 +90,15 @@ export const CustomerLedger: React.FC<CustomerLedgerProps> = ({ showToast }) => 
       showToast('Statutory Statement of Account PDF downloaded', 'success');
     } catch (err: any) {
       showToast(err.message || 'PDF download failed', 'error');
+    }
+  };
+
+  const handlePrintSingleReceiptPdf = async (paymentId: number, receiptNo: string) => {
+    try {
+      await printPdf(`/payments/customer/${paymentId}/pdf`);
+      showToast(`Opened Receipt Voucher ${receiptNo} for printing`, 'info');
+    } catch (err: any) {
+      showToast(err.message || 'Receipt print failed', 'error');
     }
   };
 
@@ -132,13 +154,22 @@ export const CustomerLedger: React.FC<CustomerLedgerProps> = ({ showToast }) => 
             </button>
           )}
           <button
-            onClick={handleDownloadFullLedgerPdf}
+            onClick={handlePrintFullLedgerPdf}
             disabled={!ledgerData || ledgerData.entries?.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white border border-slate-900 dark:border-blue-700 brutalist-btn cursor-pointer disabled:opacity-50 transition shadow-2xs"
-            title="Download full Statement of Account & Balance Confirmation PDF"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-950 border border-slate-900 dark:border-white brutalist-btn cursor-pointer disabled:opacity-50 transition shadow-2xs uppercase tracking-wider"
+            title="Open Statement of Account for 1-click printing"
           >
             <Printer size={13} />
-            <span>Print / Export Full Ledger PDF</span>
+            <span>Print Statement</span>
+          </button>
+          <button
+            onClick={handleDownloadFullLedgerPdf}
+            disabled={!ledgerData || ledgerData.entries?.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-600 brutalist-btn cursor-pointer disabled:opacity-50 transition shadow-2xs uppercase tracking-wider"
+            title="Download full Statement of Account & Balance Confirmation PDF"
+          >
+            <Download size={13} />
+            <span>PDF</span>
           </button>
         </div>
       </div>
@@ -229,9 +260,9 @@ export const CustomerLedger: React.FC<CustomerLedgerProps> = ({ showToast }) => 
               <th className="py-2.5 px-3">Voucher / Ref Type</th>
               <th className="py-2.5 px-3">Reference No</th>
               <th className="py-2.5 px-3">Particulars / Description</th>
-              <th className="py-2.5 px-3 text-right">Debit / Invoiced (₹)</th>
-              <th className="py-2.5 px-3 text-right">Credit / Paid (₹)</th>
-              <th className="py-2.5 px-3 text-right font-bold">Running Balance (₹)</th>
+              <th className="py-2.5 px-3 text-right">Debit / Invoiced (Rs.)</th>
+              <th className="py-2.5 px-3 text-right">Credit / Paid (Rs.)</th>
+              <th className="py-2.5 px-3 text-right font-bold">Running Balance (Rs.)</th>
               <th className="py-2.5 px-3 text-center">Receipt / Print</th>
             </tr>
           </thead>
@@ -280,19 +311,20 @@ export const CustomerLedger: React.FC<CustomerLedgerProps> = ({ showToast }) => 
                       <div className="flex items-center justify-center gap-1">
                         {isPayment && e.reference_id && (
                           <button
-                            onClick={() => handleDownloadSingleReceiptPdf(e.reference_id, e.reference_number)}
+                            onClick={() => handlePrintSingleReceiptPdf(e.reference_id, e.reference_number)}
                             title="Print Official Payment Receipt Voucher"
-                            className="p-1 border border-slate-900 dark:border-slate-600 bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 brutalist-btn cursor-pointer"
+                            className="px-1.5 py-1 border border-slate-900 dark:border-slate-600 bg-emerald-600 hover:bg-emerald-700 text-white brutalist-btn cursor-pointer inline-flex items-center gap-1 text-[10px] font-bold shadow-2xs"
                           >
-                            <FileText size={12} />
+                            <Printer size={11} />
+                            <span>Receipt</span>
                           </button>
                         )}
                         <button
                           onClick={() => handleDownloadSingleEntryPdf(e.id, e.reference_number)}
-                          title="Print Single Transaction Statement PDF"
-                          className="p-1 border border-slate-900 dark:border-slate-600 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 brutalist-btn cursor-pointer"
+                          title="Download Single Transaction Statement PDF"
+                          className="p-1 border border-slate-300 dark:border-slate-600 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 brutalist-btn cursor-pointer"
                         >
-                          <Printer size={12} />
+                          <Download size={12} />
                         </button>
                       </div>
                     </td>

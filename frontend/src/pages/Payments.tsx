@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { CreditCard, Plus, ArrowDownLeft, ArrowUpRight, Printer, FileText } from 'lucide-react';
-import { apiRequest, downloadFile } from '../api/client';
+import { CreditCard, Plus, ArrowDownLeft, ArrowUpRight, Printer, Download, FileText, CheckCircle2, X } from 'lucide-react';
+import { apiRequest, downloadFile, printPdf } from '../api/client';
 import { Modal } from '../components/Modal';
 import { formatDate } from '../utils/date';
 
@@ -25,6 +25,12 @@ export const Payments: React.FC<PaymentsProps> = ({ showToast }) => {
   const [referenceNo, setReferenceNo] = useState('');
   const [bankName, setBankName] = useState('');
   const [notes, setNotes] = useState('');
+
+  // Last Created Voucher Banner (for instant Print & PDF)
+  const [lastCreatedVoucher, setLastCreatedVoucher] = useState<{
+    type: 'customer' | 'supplier';
+    voucher: any;
+  } | null>(null);
 
   const fetchPayments = async () => {
     setLoading(true);
@@ -59,7 +65,7 @@ export const Payments: React.FC<PaymentsProps> = ({ showToast }) => {
 
     try {
       if (activeTab === 'customer') {
-        await apiRequest('/payments/customer', {
+        const res = await apiRequest('/payments/customer', {
           method: 'POST',
           body: JSON.stringify({
             customer_id: Number(partyId),
@@ -71,9 +77,12 @@ export const Payments: React.FC<PaymentsProps> = ({ showToast }) => {
             notes: notes
           })
         });
-        showToast('Customer payment receipt created and posted to ledger', 'success');
+        showToast(`Customer receipt ${res.payment?.receipt_number || ''} created successfully!`, 'success');
+        if (res.payment) {
+          setLastCreatedVoucher({ type: 'customer', voucher: res.payment });
+        }
       } else {
-        await apiRequest('/payments/supplier', {
+        const res = await apiRequest('/payments/supplier', {
           method: 'POST',
           body: JSON.stringify({
             supplier_id: Number(partyId),
@@ -85,7 +94,10 @@ export const Payments: React.FC<PaymentsProps> = ({ showToast }) => {
             notes: notes
           })
         });
-        showToast('Supplier payment voucher created and posted to ledger', 'success');
+        showToast(`Supplier payment voucher ${res.payment?.voucher_number || ''} created successfully!`, 'success');
+        if (res.payment) {
+          setLastCreatedVoucher({ type: 'supplier', voucher: res.payment });
+        }
       }
 
       setIsModalOpen(false);
@@ -100,14 +112,26 @@ export const Payments: React.FC<PaymentsProps> = ({ showToast }) => {
     }
   };
 
-  const handleDownloadVoucherPdf = async (payment: any) => {
+  const handlePrintVoucher = async (payment: any, type: 'customer' | 'supplier' = activeTab) => {
     try {
-      if (activeTab === 'customer') {
-        const safeNum = payment.receipt_number.replace(/\//g, '_');
+      const endpoint = type === 'customer'
+        ? `/payments/customer/${payment.id}/pdf`
+        : `/payments/supplier/${payment.id}/pdf`;
+      await printPdf(endpoint);
+      showToast(`Opened ${type === 'customer' ? 'Receipt Voucher' : 'Payment Voucher'} for printing`, 'info');
+    } catch (err: any) {
+      showToast(err.message || 'Print voucher failed', 'error');
+    }
+  };
+
+  const handleDownloadVoucherPdf = async (payment: any, type: 'customer' | 'supplier' = activeTab) => {
+    try {
+      if (type === 'customer') {
+        const safeNum = (payment.receipt_number || `Receipt_${payment.id}`).replace(/\//g, '_');
         await downloadFile(`/payments/customer/${payment.id}/pdf`, `Receipt_${safeNum}.pdf`);
         showToast(`Downloaded Official Receipt ${payment.receipt_number}`, 'success');
       } else {
-        const safeNum = payment.voucher_number.replace(/\//g, '_');
+        const safeNum = (payment.voucher_number || `Voucher_${payment.id}`).replace(/\//g, '_');
         await downloadFile(`/payments/supplier/${payment.id}/pdf`, `Voucher_${safeNum}.pdf`);
         showToast(`Downloaded Payment Voucher ${payment.voucher_number}`, 'success');
       }
@@ -131,6 +155,56 @@ export const Payments: React.FC<PaymentsProps> = ({ showToast }) => {
           {activeTab === 'customer' ? 'New Customer Receipt' : 'New Supplier Voucher'}
         </button>
       </div>
+
+      {/* Immediate Print & PDF Voucher Alert Banner */}
+      {lastCreatedVoucher && (
+        <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-600 dark:border-emerald-500 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs animate-in fade-in">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 size={18} className="text-emerald-700 dark:text-emerald-400 shrink-0" />
+            <div>
+              <div className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                {lastCreatedVoucher.type === 'customer' ? 'Customer Receipt Voucher Created' : 'Supplier Disbursement Voucher Created'}
+              </div>
+              <div className="text-[11px] text-slate-600 dark:text-slate-300">
+                Voucher Ref:{' '}
+                <span className="font-mono font-bold text-emerald-800 dark:text-emerald-300">
+                  {lastCreatedVoucher.type === 'customer' ? lastCreatedVoucher.voucher.receipt_number : lastCreatedVoucher.voucher.voucher_number}
+                </span>{' '}
+                | Party:{' '}
+                <span className="font-semibold text-slate-900 dark:text-white">
+                  {lastCreatedVoucher.type === 'customer' ? lastCreatedVoucher.voucher.customer_name : lastCreatedVoucher.voucher.supplier_name}
+                </span>{' '}
+                | Amount: <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">Rs. {Number(lastCreatedVoucher.voucher.amount || 0).toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            <button
+              onClick={() => handlePrintVoucher(lastCreatedVoucher.voucher, lastCreatedVoucher.type)}
+              className="flex items-center gap-1.5 px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs uppercase tracking-wider border border-emerald-900 brutalist-btn cursor-pointer shadow-xs"
+              title="Print Voucher Immediately (Opens 1-Click Print Dialog)"
+            >
+              <Printer size={13} />
+              <span>Print Voucher</span>
+            </button>
+            <button
+              onClick={() => handleDownloadVoucherPdf(lastCreatedVoucher.voucher, lastCreatedVoucher.type)}
+              className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-bold text-xs uppercase tracking-wider border border-slate-400 dark:border-slate-600 brutalist-btn cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700"
+              title="Download PDF Voucher to Disk"
+            >
+              <Download size={13} />
+              <span>PDF</span>
+            </button>
+            <button
+              onClick={() => setLastCreatedVoucher(null)}
+              className="p-1 text-slate-500 hover:text-slate-900 dark:hover:text-white cursor-pointer ml-1"
+              title="Dismiss banner"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="flex border-b border-slate-300 dark:border-slate-700 gap-2 text-xs">
         <button
@@ -163,9 +237,9 @@ export const Payments: React.FC<PaymentsProps> = ({ showToast }) => {
               <th className="py-2.5 px-3">Payment Mode</th>
               <th className="py-2.5 px-3">Reference / UTR No</th>
               <th className="py-2.5 px-3">Bank Details</th>
-              <th className="py-2.5 px-3 text-right font-bold">Amount (₹)</th>
+              <th className="py-2.5 px-3 text-right font-bold">Amount (Rs.)</th>
               <th className="py-2.5 px-3">Notes</th>
-              <th className="py-2.5 px-3 text-center">Receipt / Voucher PDF</th>
+              <th className="py-2.5 px-3 text-center">Print / Download</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
@@ -195,18 +269,27 @@ export const Payments: React.FC<PaymentsProps> = ({ showToast }) => {
                   <td className={`py-2 px-3 text-right font-mono font-bold text-sm ${
                     activeTab === 'customer' ? 'text-emerald-700 dark:text-emerald-400' : 'text-blue-700 dark:text-blue-400'
                   }`}>
-                    ₹{p.amount.toFixed(2)}
+                    Rs. {Number(p.amount || 0).toFixed(2)}
                   </td>
                   <td className="py-2 px-3 text-slate-500 dark:text-slate-400 text-[11px]">{p.notes || '-'}</td>
                   <td className="py-2 px-3 text-center">
-                    <button
-                      onClick={() => handleDownloadVoucherPdf(p)}
-                      title={activeTab === 'customer' ? 'Download Official Receipt Voucher PDF' : 'Download Payment Voucher PDF'}
-                      className="p-1 border border-slate-900 dark:border-slate-600 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 brutalist-btn cursor-pointer inline-flex items-center gap-1 text-[11px] font-semibold"
-                    >
-                      <Printer size={12} />
-                      <span>{activeTab === 'customer' ? 'Receipt' : 'Voucher'}</span>
-                    </button>
+                    <div className="flex items-center justify-center gap-1">
+                      <button
+                        onClick={() => handlePrintVoucher(p, activeTab)}
+                        title={activeTab === 'customer' ? 'Print Official Receipt Voucher' : 'Print Official Payment Voucher'}
+                        className="px-2 py-1 border border-slate-900 dark:border-slate-600 bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-950 brutalist-btn cursor-pointer inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider shadow-2xs"
+                      >
+                        <Printer size={12} />
+                        <span>Print</span>
+                      </button>
+                      <button
+                        onClick={() => handleDownloadVoucherPdf(p, activeTab)}
+                        title="Download PDF File"
+                        className="p-1 border border-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 brutalist-btn cursor-pointer inline-flex items-center"
+                      >
+                        <Download size={12} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))

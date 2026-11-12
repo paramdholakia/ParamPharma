@@ -173,9 +173,10 @@ def record_supplier_payment(data: SupplierPaymentCreateSchema, db: Session = Dep
     return {"message": "Payment voucher created successfully", "payment": payment}
 
 @router.get("/customer/{payment_id}/pdf")
-def download_customer_receipt_pdf(payment_id: int, db: Session = Depends(get_db)):
+def download_customer_receipt_pdf(payment_id: int, disposition: str = "attachment", db: Session = Depends(get_db)):
     """
     Download official Payment Receipt Voucher PDF for customer collection.
+    Supports ?disposition=inline for browser printing and preview.
     """
     payment = db.query(CustomerPayment).filter(CustomerPayment.id == payment_id).first()
     if not payment:
@@ -197,16 +198,18 @@ def download_customer_receipt_pdf(payment_id: int, db: Session = Depends(get_db)
         is_customer=True
     )
     safe_rec = payment.receipt_number.replace("/", "_")
+    disp = "inline" if disposition == "inline" else "attachment"
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=Receipt_{safe_rec}.pdf"}
+        headers={"Content-Disposition": f"{disp}; filename=Receipt_{safe_rec}.pdf"}
     )
 
 @router.get("/supplier/{payment_id}/pdf")
-def download_supplier_voucher_pdf(payment_id: int, db: Session = Depends(get_db)):
+def download_supplier_voucher_pdf(payment_id: int, disposition: str = "attachment", db: Session = Depends(get_db)):
     """
     Download official Payment Disbursement Voucher PDF for supplier remittance.
+    Supports ?disposition=inline for browser printing and preview.
     """
     payment = db.query(SupplierPayment).filter(SupplierPayment.id == payment_id).first()
     if not payment:
@@ -228,8 +231,9 @@ def download_supplier_voucher_pdf(payment_id: int, db: Session = Depends(get_db)
         is_customer=False
     )
     safe_vch = payment.voucher_number.replace("/", "_")
+    disp = "inline" if disposition == "inline" else "attachment"
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=Voucher_{safe_vch}.pdf"}
+        headers={"Content-Disposition": f"{disp}; filename=Voucher_{safe_vch}.pdf"}
     )

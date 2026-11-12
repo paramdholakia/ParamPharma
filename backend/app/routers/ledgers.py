@@ -96,11 +96,13 @@ def get_customer_ledger_pdf(
     from_date: Optional[date] = None,
     to_date: Optional[date] = None,
     entry_ids: Optional[str] = None,
+    disposition: str = "attachment",
     db: Session = Depends(get_db)
 ):
     """
     Generate statutory Customer Statement of Account & Balance Confirmation PDF.
     Supports single transaction, multiple selected transactions, or full date range.
+    Supports ?disposition=inline for browser printing and preview.
     """
     customer = db.query(Customer).filter(Customer.id == customer_id).first()
     if not customer:
@@ -154,10 +156,11 @@ def get_customer_ledger_pdf(
     )
 
     safe_party = customer.party_name.replace(" ", "_").replace("/", "_")
+    disp = "inline" if disposition == "inline" else "attachment"
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=Customer_Ledger_{safe_party}.pdf"}
+        headers={"Content-Disposition": f"{disp}; filename=Customer_Ledger_{safe_party}.pdf"}
     )
 
 @router.get("/supplier/{supplier_id}/pdf")
@@ -166,11 +169,13 @@ def get_supplier_ledger_pdf(
     from_date: Optional[date] = None,
     to_date: Optional[date] = None,
     entry_ids: Optional[str] = None,
+    disposition: str = "attachment",
     db: Session = Depends(get_db)
 ):
     """
     Generate statutory Supplier Statement of Account & Balance Confirmation PDF.
     Supports single transaction, multiple selected transactions, or full date range.
+    Supports ?disposition=inline for browser printing and preview.
     """
     supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
     if not supplier:
@@ -224,8 +229,9 @@ def get_supplier_ledger_pdf(
     )
 
     safe_party = supplier.supplier_name.replace(" ", "_").replace("/", "_")
+    disp = "inline" if disposition == "inline" else "attachment"
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=Supplier_Ledger_{safe_party}.pdf"}
+        headers={"Content-Disposition": f"{disp}; filename=Supplier_Ledger_{safe_party}.pdf"}
     )

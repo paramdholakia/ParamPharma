@@ -508,7 +508,7 @@ def generate_invoice_pdf(company: dict, invoice: dict, items: list[dict], includ
             qr_mode=invoice.get("upi_qr_mode", "universal")
         )
         rl_qr_img = RLImage(qr_buf, width=24 * mm, height=24 * mm)
-        qr_caption = Paragraph(f"<b>SCAN &amp; PAY VIA UPI</b><br/>GPay | PhonePe | Paytm<br/><b>{active_upi_id}</b><br/>Pay: <b>₹{net_total:,.2f}</b><br/>Mob: {phone_display}", qr_text_style)
+        qr_caption = Paragraph(f"<b>SCAN &amp; PAY VIA UPI</b><br/>GPay | PhonePe | Paytm<br/><b>{active_upi_id}</b><br/>Pay: <b>Rs. {net_total:,.2f}</b><br/>Mob: {phone_display}", qr_text_style)
 
         qr_box = Table(
             [[rl_qr_img], [qr_caption]],
@@ -723,9 +723,9 @@ def generate_ledger_pdf(
 
     summary_html = f"""
     <b>FINANCIAL RECONCILIATION SUMMARY:</b><br/>
-    <b>Opening Balance:</b> ₹{open_bal:,.2f}<br/>
-    <b>Total Debits (+):</b> ₹{total_deb:,.2f} | <b>Total Credits (-):</b> ₹{total_cred:,.2f}<br/>
-    <b>Closing Balance:</b> <font color="#0f172a" size="8"><b>₹{abs(closing_bal):,.2f} {bal_type}</b></font><br/>
+    <b>Opening Balance:</b> Rs. {open_bal:,.2f}<br/>
+    <b>Total Debits (+):</b> Rs. {total_deb:,.2f} | <b>Total Credits (-):</b> Rs. {total_cred:,.2f}<br/>
+    <b>Closing Balance:</b> <font color="#0f172a" size="8"><b>Rs. {abs(closing_bal):,.2f} {bal_type}</b></font><br/>
     <i>{closing_words}</i>
     """
 
@@ -755,9 +755,9 @@ def generate_ledger_pdf(
             Paragraph("Type", th_style),
             Paragraph("Ref / Voucher #", th_style),
             Paragraph("Particulars / Narration", th_style),
-            Paragraph("Debit (₹)", th_style_r),
-            Paragraph("Credit (₹)", th_style_r),
-            Paragraph("Balance (₹)", th_style_r),
+            Paragraph("Debit (Rs.)", th_style_r),
+            Paragraph("Credit (Rs.)", th_style_r),
+            Paragraph("Balance (Rs.)", th_style_r),
         ]
     ]
 
@@ -790,9 +790,9 @@ def generate_ledger_pdf(
         Paragraph("", td_style),
         Paragraph("", td_style),
         Paragraph(f"<b>{len(entries)} Transaction(s)</b>", td_bold),
-        Paragraph(f"<b>₹{total_deb:,.2f}</b>", td_r_bold),
-        Paragraph(f"<b>₹{total_cred:,.2f}</b>", td_r_bold),
-        Paragraph(f"<b>₹{abs(closing_bal):,.2f} {'Dr' if closing_bal >= 0 else 'Cr'}</b>", td_r_bold),
+        Paragraph(f"<b>Rs. {total_deb:,.2f}</b>", td_r_bold),
+        Paragraph(f"<b>Rs. {total_cred:,.2f}</b>", td_r_bold),
+        Paragraph(f"<b>Rs. {abs(closing_bal):,.2f} {'Dr' if closing_bal >= 0 else 'Cr'}</b>", td_r_bold),
     ])
 
     ledger_table = Table(table_rows, colWidths=col_w, repeatRows=1)
@@ -820,7 +820,7 @@ def generate_ledger_pdf(
     as_on_date = to_date or datetime.now().strftime("%d-%m-%Y")
     declaration_text = f"""
     <b>STATUTORY BALANCE CONFIRMATION &amp; AUDIT DECLARATION:</b><br/>
-    We hereby confirm that the closing balance of <b>₹{abs(closing_bal):,.2f} {bal_type}</b> appearing in your account as on <b>{as_on_date}</b> is true, reconciled, and correct as per our audited books of accounts. Please verify and confirm this balance. If no written discrepancy or objection is received within 15 days from the date of this statement, this balance shall be treated as conclusively accepted and binding for all commercial, audit, and GST statutory purposes.<br/>
+    We hereby confirm that the closing balance of <b>Rs. {abs(closing_bal):,.2f} {bal_type}</b> appearing in your account as on <b>{as_on_date}</b> is true, reconciled, and correct as per our audited books of accounts. Please verify and confirm this balance. If no written discrepancy or objection is received within 15 days from the date of this statement, this balance shall be treated as conclusively accepted and binding for all commercial, audit, and GST statutory purposes.<br/>
     <b>Jurisdiction:</b> Subject to Bhuj, Kutch (Gujarat) - 370001 jurisdiction only.
     """
 
@@ -995,7 +995,7 @@ def generate_payment_voucher_pdf(
     # Amount Banner
     amt_table = Table(
         [
-            [Paragraph(f"AMOUNT RECEIVED: ₹{amt:,.2f}" if is_customer else f"AMOUNT PAID: ₹{amt:,.2f}", amount_box_style)],
+            [Paragraph(f"AMOUNT RECEIVED: Rs. {amt:,.2f}" if is_customer else f"AMOUNT PAID: Rs. {amt:,.2f}", amount_box_style)],
             [Paragraph(f"Rupees in Words: <b>{amt_words}</b>", words_style)]
         ],
         colWidths=[190 * mm]
