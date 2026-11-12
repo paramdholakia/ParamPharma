@@ -86,6 +86,11 @@ export const SalesBilling: React.FC<SalesBillingProps> = ({ showToast }) => {
     apiRequest('/products?limit=10')
       .then((res) => setPopularProducts(res.products || []))
       .catch(() => {});
+    apiRequest('/company')
+      .then((comp) => {
+        if (comp?.upi_id) setUpiId(comp.upi_id);
+      })
+      .catch(() => {});
   }, []);
 
   // Update selected customer details
@@ -455,10 +460,13 @@ Thank you for your valuable business with Param Pharma!`;
                 onChange={(e) => setUpiId(e.target.value)}
                 className="bg-transparent text-[11px] font-mono font-bold text-slate-900 dark:text-white outline-hidden cursor-pointer"
               >
-                <option value="aldholakia72-1@okaxis">aldholakia72-1@okaxis (Default)</option>
+                <option value="aldholakia72-1@okaxis">aldholakia72-1@okaxis (GPay Verified)</option>
                 <option value="9429041051@okaxis">9429041051@okaxis (Axis)</option>
                 <option value="9429041051@paytm">9429041051@paytm</option>
                 <option value="9429041051@ybl">9429041051@ybl (PhonePe)</option>
+                {upiId && !['aldholakia72-1@okaxis', '9429041051@okaxis', '9429041051@paytm', '9429041051@ybl'].includes(upiId) && (
+                  <option value={upiId}>{upiId}</option>
+                )}
               </select>
               <button
                 type="button"
@@ -813,7 +821,7 @@ Thank you for your valuable business with Param Pharma!`;
           {includeUpiQr && (
             <div className="mt-1 pt-1 border-t border-dashed border-slate-400 dark:border-slate-600 flex items-center gap-1.5 text-[10px] text-slate-600 dark:text-slate-300 font-mono">
               <QrCode size={13} className="text-blue-600 shrink-0" />
-              <span>UPI QR for aldholakia72-1@okaxis (₹{netInvoiceAmount.toFixed(2)}) will print on bill</span>
+              <span>UPI QR for {upiId} (₹{netInvoiceAmount.toFixed(2)}) will print on bill (Google Pay Ready)</span>
             </div>
           )}
         </div>

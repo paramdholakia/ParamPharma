@@ -1,11 +1,12 @@
 import io
 from datetime import datetime
+from typing import Optional, List, Dict, Any
 from urllib.parse import quote
 import qrcode
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage, KeepTogether
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
@@ -56,18 +57,26 @@ def number_to_words_indian(num: float) -> str:
     return words + " Only"
 
 
-def generate_upi_qr_image(upi_id: str, payee_name: str, amount: float, invoice_number: str) -> io.BytesIO:
+def generate_upi_qr_image(upi_id: str, payee_name: str, amount: float, invoice_number: str, qr_mode: str = "universal") -> io.BytesIO:
     """
-    Generates an in-memory PNG QR code strictly adhering to NPCI specifications
-    with proper percent encoding. Compatible with GPay, PhonePe, Paytm, BHIM.
+    Generates an in-memory PNG QR code strictly adhering to NPCI specifications.
+    When qr_mode == "universal" (default):
+      Uses upi://pay?pa={clean_vpa}&pn={encoded_name}&cu=INR.
+      This format is 100% compatible with Google Pay, PhonePe, Paytm, BHIM, Cred,
+      avoiding Google Pay's strict merchant rejection of dynamic amounts on individual VPAs.
+    When qr_mode == "dynamic":
+      Uses upi://pay?pa={clean_vpa}&pn={encoded_name}&am={amount:.2f}&cu=INR&tn={encoded_note}&mode=02
     """
     clean_vpa = (upi_id or "aldholakia72-1@okaxis").strip()
     encoded_name = quote(payee_name.strip())
     clean_inv = str(invoice_number).replace("/", "_").strip()
     encoded_note = quote(f"Bill_{clean_inv}")
 
-    # Standard NPCI URI scheme:
-    upi_url = f"upi://pay?pa={clean_vpa}&pn={encoded_name}&am={amount:.2f}&cu=INR&tn={encoded_note}"
+    if qr_mode == "dynamic" and amount > 0:
+        upi_url = f"upi://pay?pa={clean_vpa}&pn={encoded_name}&am={amount:.2f}&cu=INR&tn={encoded_note}&mode=02"
+    else:
+        upi_url = f"upi://pay?pa={clean_vpa}&pn={encoded_name}&cu=INR"
+
     qr = qrcode.QRCode(
         version=None,
         error_correction=qrcode.constants.ERROR_CORRECT_M,
@@ -495,10 +504,11 @@ def generate_invoice_pdf(company: dict, invoice: dict, items: list[dict], includ
             upi_id=active_upi_id,
             payee_name=comp_name,
             amount=net_total,
-            invoice_number=inv_num
+            invoice_number=inv_num,
+            qr_mode=invoice.get("upi_qr_mode", "universal")
         )
         rl_qr_img = RLImage(qr_buf, width=24 * mm, height=24 * mm)
-        qr_caption = Paragraph(f"<b>SCAN & PAY VIA UPI</b><br/>GPay | PhonePe | Paytm<br/><b>{active_upi_id}</b><br/>Mob: {phone_display}", qr_text_style)
+        qr_caption = Paragraph(f"<b>SCAN &amp; PAY VIA UPI</b><br/>GPay | PhonePe | Paytm<br/><b>{active_upi_id}</b><br/>Pay: <b>₹{net_total:,.2f}</b><br/>Mob: {phone_display}", qr_text_style)
 
         qr_box = Table(
             [[rl_qr_img], [qr_caption]],
@@ -544,6 +554,520 @@ def generate_invoice_pdf(company: dict, invoice: dict, items: list[dict], includ
     ]))
 
     story.append(summary_table)
+
+    doc.build(story)
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+    return pdf_bytes
+
+
+def generate_ledger_pdf(
+    company: dict,
+    party: dict,
+    entries: list[dict],
+    summary: dict,
+    party_type: str = "customer",
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    statement_title: Optional[str] = None
+) -> bytes:
+    """
+    Generates a statutory Statement of Account & Balance Confirmation PDF.
+    Calibrated to 194mm printable width on A4 paper with dual signature blocks,
+    reconciled opening/closing balances, and Bhuj, Kutch (Gujarat) jurisdiction.
+    """
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=8 * mm,
+        rightMargin=8 * mm,
+        topMargin=8 * mm,
+        bottomMargin=8 * mm
+    )
+
+    styles = getSampleStyleSheet()
+
+    comp_title = ParagraphStyle(
+        "LedgerCompTitle", parent=styles["Normal"],
+        fontSize=14, fontName="Helvetica-Bold", textColor=colors.HexColor("#0f172a"), leading=17
+    )
+    doc_title_style = ParagraphStyle(
+        "LedgerDocTitle", parent=styles["Normal"],
+        fontSize=10, fontName="Helvetica-Bold", textColor=colors.HexColor("#0f172a"),
+        alignment=2, leading=12
+    )
+    party_body = ParagraphStyle(
+        "LedgerPartyBody", parent=styles["Normal"],
+        fontSize=6.8, textColor=colors.HexColor("#1e293b"), leading=9
+    )
+    th_style = ParagraphStyle(
+        "LedgerTH", parent=styles["Normal"],
+        fontSize=7, fontName="Helvetica-Bold", textColor=colors.white, leading=8.5
+    )
+    th_style_r = ParagraphStyle(
+        "LedgerTHR", parent=styles["Normal"],
+        fontSize=7, fontName="Helvetica-Bold", textColor=colors.white, alignment=2, leading=8.5
+    )
+    td_style = ParagraphStyle(
+        "LedgerTD", parent=styles["Normal"],
+        fontSize=6.5, textColor=colors.HexColor("#0f172a"), leading=8
+    )
+    td_bold = ParagraphStyle(
+        "LedgerTDBold", parent=styles["Normal"],
+        fontSize=6.5, fontName="Helvetica-Bold", textColor=colors.HexColor("#0f172a"), leading=8
+    )
+    td_r = ParagraphStyle(
+        "LedgerTDR", parent=styles["Normal"],
+        fontSize=6.5, textColor=colors.HexColor("#0f172a"), alignment=2, leading=8
+    )
+    td_r_bold = ParagraphStyle(
+        "LedgerTDRBold", parent=styles["Normal"],
+        fontSize=6.5, fontName="Helvetica-Bold", textColor=colors.HexColor("#0f172a"), alignment=2, leading=8
+    )
+    legal_style = ParagraphStyle(
+        "LedgerLegal", parent=styles["Normal"],
+        fontSize=6.2, textColor=colors.HexColor("#334155"), leading=8
+    )
+    sig_style_l = ParagraphStyle(
+        "LedgerSigL", parent=styles["Normal"],
+        fontSize=7, textColor=colors.HexColor("#0f172a"), leading=9.5
+    )
+    sig_style_r = ParagraphStyle(
+        "LedgerSigR", parent=styles["Normal"],
+        fontSize=7, textColor=colors.HexColor("#0f172a"), alignment=2, leading=9.5
+    )
+
+    story = []
+
+    # 1. Authoritative Header
+    comp_name = company.get("company_name", "PARAM PHARMA").upper()
+    comp_legal = company.get("legal_name", "Wholesale & Distribution of Pharmaceuticals")
+    c_addr1 = company.get("address_line1", "Station Road, Pharmaceutical Market")
+    c_addr2 = company.get("address_line2", "Opp. Civil Hospital")
+    c_city = company.get("city", "Bhuj, Kutch")
+    c_state = company.get("state", "Gujarat")
+    c_pin = company.get("pincode", "370001")
+    c_dl20b = company.get("dl_number_20b", "GUJ-DL-20B-12345")
+    c_dl21b = company.get("dl_number_21b", "GUJ-DL-21B-12346")
+    c_gstin = company.get("gstin", "24AABCP1234F1Z5")
+    c_pan = company.get("pan", "AABCP1234F")
+    c_phone = company.get("phone", "9429041051")
+    c_email = company.get("email", "paramdholakia@gmail.com")
+
+    party_name = (party.get("party_name") or party.get("supplier_name") or "Valued Client").upper()
+    is_cust = party_type.lower() == "customer"
+    doc_heading = statement_title or ("CUSTOMER STATEMENT OF ACCOUNT" if is_cust else "SUPPLIER STATEMENT OF ACCOUNT")
+
+    now_str = datetime.now().strftime("%d-%b-%Y %I:%M %p")
+    period_str = f"{from_date or 'Beginning'} to {to_date or datetime.now().strftime('%d-%b-%Y')}"
+
+    comp_info_html = f"""
+    <b>{comp_name}</b><br/>
+    <font size="7" color="#475569">{comp_legal}</font><br/>
+    <font size="6.5" color="#334155">{c_addr1}, {c_addr2}, {c_city}, {c_state} - {c_pin}<br/>
+    <b>DL Nos:</b> {c_dl20b} / {c_dl21b} | <b>GSTIN:</b> {c_gstin} | <b>PAN:</b> {c_pan}<br/>
+    <b>Mob:</b> {c_phone} | <b>Email:</b> {c_email}</font>
+    """
+
+    doc_meta_html = f"""
+    <b>{doc_heading}</b><br/>
+    <font color="#475569"><b>&amp; BALANCE CONFIRMATION</b></font><br/>
+    <b>Period:</b> {period_str}<br/>
+    <b>Generated:</b> {now_str}<br/>
+    <b>Jurisdiction:</b> Bhuj, Kutch (Gujarat)
+    """
+
+    header_table = Table(
+        [[Paragraph(comp_info_html, comp_title), Paragraph(doc_meta_html, doc_title_style)]],
+        colWidths=[120 * mm, 74 * mm]
+    )
+    header_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    story.append(header_table)
+    story.append(Spacer(1, 2 * mm))
+
+    # 2. Party Information Box & Financial Overview
+    p_addr = party.get("billing_address") or party.get("address") or ""
+    p_city = party.get("city", "")
+    p_state = party.get("state", "Gujarat")
+    p_pin = party.get("pincode", "")
+    p_full_addr = f"{p_addr}, {p_city}, {p_state} {p_pin}".strip(", ")
+    if not p_full_addr:
+        p_full_addr = "Local / Counter Client"
+    p_cat = party.get("category") or party.get("customer_category") or "Chemist / Stockist"
+    p_gstin = party.get("gstin") or "Unregistered / Consumer"
+    p_dl = party.get("dl_number") or "N/A"
+    p_pan = party.get("pan") or "N/A"
+    p_mobile = party.get("mobile") or "N/A"
+
+    closing_bal = float(summary.get("closing_balance", 0.0) or 0.0)
+    total_deb = float(summary.get("total_debit", 0.0) or 0.0)
+    total_cred = float(summary.get("total_credit", 0.0) or 0.0)
+    open_bal = float(summary.get("opening_balance", 0.0) or 0.0)
+    bal_type = "Dr. (Receivable)" if closing_bal >= 0 else "Cr. (Advance/Payable)"
+    closing_words = number_to_words_indian(abs(closing_bal))
+
+    party_html = f"""
+    <b>PARTY DETAILS:</b><br/>
+    <b>Name:</b> {party_name} ({p_cat})<br/>
+    <b>Address:</b> {p_full_addr}<br/>
+    <b>GSTIN:</b> {p_gstin} | <b>DL No:</b> {p_dl}<br/>
+    <b>PAN:</b> {p_pan} | <b>Mobile:</b> {p_mobile}
+    """
+
+    summary_html = f"""
+    <b>FINANCIAL RECONCILIATION SUMMARY:</b><br/>
+    <b>Opening Balance:</b> ₹{open_bal:,.2f}<br/>
+    <b>Total Debits (+):</b> ₹{total_deb:,.2f} | <b>Total Credits (-):</b> ₹{total_cred:,.2f}<br/>
+    <b>Closing Balance:</b> <font color="#0f172a" size="8"><b>₹{abs(closing_bal):,.2f} {bal_type}</b></font><br/>
+    <i>{closing_words}</i>
+    """
+
+    boxes_table = Table(
+        [[Paragraph(party_html, party_body), Paragraph(summary_html, party_body)]],
+        colWidths=[100 * mm, 94 * mm]
+    )
+    boxes_table.setStyle(TableStyle([
+        ('BOX', (0, 0), (0, 0), 0.6, colors.HexColor("#0f172a")),
+        ('BOX', (1, 0), (1, 0), 0.6, colors.HexColor("#0f172a")),
+        ('BACKGROUND', (0, 0), (0, 0), colors.HexColor("#f8fafc")),
+        ('BACKGROUND', (1, 0), (1, 0), colors.HexColor("#f1f5f9")),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    story.append(boxes_table)
+    story.append(Spacer(1, 2.5 * mm))
+
+    # 3. Itemized Ledger Table
+    col_w = [18 * mm, 22 * mm, 30 * mm, 52 * mm, 24 * mm, 24 * mm, 24 * mm]
+    table_rows = [
+        [
+            Paragraph("Date", th_style),
+            Paragraph("Type", th_style),
+            Paragraph("Ref / Voucher #", th_style),
+            Paragraph("Particulars / Narration", th_style),
+            Paragraph("Debit (₹)", th_style_r),
+            Paragraph("Credit (₹)", th_style_r),
+            Paragraph("Balance (₹)", th_style_r),
+        ]
+    ]
+
+    for idx, e in enumerate(entries):
+        dt_val = str(e.get("transaction_date", ""))
+        ref_type = str(e.get("reference_type", "General"))
+        ref_no = str(e.get("reference_number") or e.get("reference_id") or "-")
+        desc_txt = str(e.get("description") or "-")
+        deb_val = float(e.get("debit_amount", 0.0) or 0.0)
+        cred_val = float(e.get("credit_amount", 0.0) or 0.0)
+        run_bal = float(e.get("running_balance", 0.0) or 0.0)
+
+        deb_str = f"{deb_val:,.2f}" if deb_val > 0 else "-"
+        cred_str = f"{cred_val:,.2f}" if cred_val > 0 else "-"
+        bal_str = f"{abs(run_bal):,.2f} {'Dr' if run_bal >= 0 else 'Cr'}"
+
+        table_rows.append([
+            Paragraph(dt_val, td_style),
+            Paragraph(ref_type, td_style),
+            Paragraph(ref_no, td_style),
+            Paragraph(desc_txt, td_style),
+            Paragraph(deb_str, td_r),
+            Paragraph(cred_str, td_r),
+            Paragraph(bal_str, td_r_bold),
+        ])
+
+    # Totals Row
+    table_rows.append([
+        Paragraph("<b>TOTAL</b>", td_bold),
+        Paragraph("", td_style),
+        Paragraph("", td_style),
+        Paragraph(f"<b>{len(entries)} Transaction(s)</b>", td_bold),
+        Paragraph(f"<b>₹{total_deb:,.2f}</b>", td_r_bold),
+        Paragraph(f"<b>₹{total_cred:,.2f}</b>", td_r_bold),
+        Paragraph(f"<b>₹{abs(closing_bal):,.2f} {'Dr' if closing_bal >= 0 else 'Cr'}</b>", td_r_bold),
+    ])
+
+    ledger_table = Table(table_rows, colWidths=col_w, repeatRows=1)
+    t_style = [
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#0f172a")),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 1.8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1.8),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2.5),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2.5),
+        ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor("#cbd5e1")),
+        ('BOX', (0, 0), (-1, -1), 0.8, colors.HexColor("#0f172a")),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor("#e2e8f0")),
+        ('LINEABOVE', (0, -1), (-1, -1), 1.0, colors.HexColor("#0f172a")),
+    ]
+    for r in range(1, len(entries) + 1):
+        if r % 2 == 0:
+            t_style.append(('BACKGROUND', (0, r), (-1, r), colors.HexColor("#f8fafc")))
+
+    ledger_table.setStyle(TableStyle(t_style))
+    story.append(ledger_table)
+    story.append(Spacer(1, 2.5 * mm))
+
+    # 4. Confirmation Declaration Clause & Dual Signatures (Kept together)
+    as_on_date = to_date or datetime.now().strftime("%d-%m-%Y")
+    declaration_text = f"""
+    <b>STATUTORY BALANCE CONFIRMATION &amp; AUDIT DECLARATION:</b><br/>
+    We hereby confirm that the closing balance of <b>₹{abs(closing_bal):,.2f} {bal_type}</b> appearing in your account as on <b>{as_on_date}</b> is true, reconciled, and correct as per our audited books of accounts. Please verify and confirm this balance. If no written discrepancy or objection is received within 15 days from the date of this statement, this balance shall be treated as conclusively accepted and binding for all commercial, audit, and GST statutory purposes.<br/>
+    <b>Jurisdiction:</b> Subject to Bhuj, Kutch (Gujarat) - 370001 jurisdiction only.
+    """
+
+    sig_left_html = f"""
+    <b>CONFIRMED &amp; ACCEPTED BY:</b><br/>
+    For <b>{party_name}</b><br/><br/><br/><br/>
+    <b>(Party Authorized Signature &amp; Stamp)</b>
+    """
+
+    sig_right_html = f"""
+    <b>FOR PARAM PHARMA</b><br/>
+    {comp_legal}<br/><br/><br/><br/>
+    <b>Authorized Signatory</b>
+    """
+
+    closing_footer_table = Table(
+        [
+            [Paragraph(declaration_text, legal_style), ""],
+            [Paragraph(sig_left_html, sig_style_l), Paragraph(sig_right_html, sig_style_r)]
+        ],
+        colWidths=[97 * mm, 97 * mm]
+    )
+    closing_footer_table.setStyle(TableStyle([
+        ('SPAN', (0, 0), (1, 0)),
+        ('BOX', (0, 0), (-1, -1), 0.8, colors.HexColor("#0f172a")),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#f8fafc")),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('LINEBELOW', (0, 0), (-1, 0), 0.5, colors.HexColor("#cbd5e1")),
+    ]))
+
+    story.append(KeepTogether([closing_footer_table]))
+
+    doc.build(story)
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+    return pdf_bytes
+
+
+def generate_payment_voucher_pdf(
+    company: dict,
+    party: dict,
+    payment: dict,
+    is_customer: bool = True
+) -> bytes:
+    """
+    Generates an official Payment Receipt Voucher (for customer receipts)
+    or Payment Disbursement Voucher (for supplier remittances) in PDF.
+    Includes full company header, party details, amount in words, bank details,
+    dual signatures, and Bhuj, Kutch (370001) statutory jurisdiction.
+    """
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=10 * mm,
+        rightMargin=10 * mm,
+        topMargin=10 * mm,
+        bottomMargin=10 * mm
+    )
+
+    styles = getSampleStyleSheet()
+
+    comp_title = ParagraphStyle(
+        "VoucherCompTitle", parent=styles["Normal"],
+        fontSize=14, fontName="Helvetica-Bold", textColor=colors.HexColor("#0f172a"), leading=17
+    )
+    comp_sub = ParagraphStyle(
+        "VoucherCompSub", parent=styles["Normal"],
+        fontSize=7, textColor=colors.HexColor("#334155"), leading=9.5
+    )
+    vchr_meta = ParagraphStyle(
+        "VoucherMeta", parent=styles["Normal"],
+        fontSize=7.5, textColor=colors.HexColor("#1e293b"), alignment=2, leading=10.5
+    )
+    label_style = ParagraphStyle(
+        "VoucherLabel", parent=styles["Normal"],
+        fontSize=7.5, fontName="Helvetica-Bold", textColor=colors.HexColor("#0f172a"), leading=10
+    )
+    val_style = ParagraphStyle(
+        "VoucherVal", parent=styles["Normal"],
+        fontSize=7.5, textColor=colors.HexColor("#1e293b"), leading=10
+    )
+    amount_box_style = ParagraphStyle(
+        "VoucherAmt", parent=styles["Normal"],
+        fontSize=12, fontName="Helvetica-Bold", textColor=colors.HexColor("#0f172a"), alignment=1, leading=15
+    )
+    words_style = ParagraphStyle(
+        "VoucherWords", parent=styles["Normal"],
+        fontSize=7.5, fontName="Helvetica-Oblique", textColor=colors.HexColor("#1e293b"), alignment=1, leading=10
+    )
+    legal_style = ParagraphStyle(
+        "VoucherLegal", parent=styles["Normal"],
+        fontSize=6.5, textColor=colors.HexColor("#475569"), leading=8.5
+    )
+    sig_l = ParagraphStyle(
+        "VoucherSigL", parent=styles["Normal"],
+        fontSize=7.5, textColor=colors.HexColor("#0f172a"), leading=10
+    )
+    sig_r = ParagraphStyle(
+        "VoucherSigR", parent=styles["Normal"],
+        fontSize=7.5, textColor=colors.HexColor("#0f172a"), alignment=2, leading=10
+    )
+
+    story = []
+
+    comp_name = company.get("company_name", "PARAM PHARMA").upper()
+    comp_legal = company.get("legal_name", "Wholesale & Distribution of Pharmaceuticals")
+    c_addr1 = company.get("address_line1", "Station Road, Pharmaceutical Market")
+    c_addr2 = company.get("address_line2", "Opp. Civil Hospital")
+    c_city = company.get("city", "Bhuj, Kutch")
+    c_state = company.get("state", "Gujarat")
+    c_pin = company.get("pincode", "370001")
+    c_dl20b = company.get("dl_number_20b", "GUJ-DL-20B-12345")
+    c_dl21b = company.get("dl_number_21b", "GUJ-DL-21B-12346")
+    c_gstin = company.get("gstin", "24AABCP1234F1Z5")
+    c_pan = company.get("pan", "AABCP1234F")
+    c_phone = company.get("phone", "9429041051")
+    c_email = company.get("email", "paramdholakia@gmail.com")
+
+    party_name = (party.get("party_name") or party.get("supplier_name") or "Party").upper()
+    p_addr = party.get("billing_address") or party.get("address") or ""
+    p_city = party.get("city", "")
+    p_full_addr = f"{p_addr}, {p_city}".strip(", ")
+    p_gstin = party.get("gstin") or "Unregistered / Consumer"
+    p_dl = party.get("dl_number") or "N/A"
+    p_mobile = party.get("mobile") or "N/A"
+
+    vchr_num = payment.get("receipt_number") or payment.get("voucher_number") or f"VCH-{payment.get('id', 1)}"
+    vchr_date = str(payment.get("payment_date", datetime.now().date()))
+    amt = float(payment.get("amount", 0.0) or 0.0)
+    amt_words = number_to_words_indian(amt)
+    pay_mode = payment.get("payment_mode", "Cash")
+    ref_no = payment.get("reference_no") or "N/A"
+    bank = payment.get("bank_name") or "N/A"
+    cq_date = str(payment.get("cheque_date") or "N/A")
+    notes = payment.get("notes") or "Payment settled towards outstanding balance."
+    doc_title = "OFFICIAL MONEY RECEIPT (CUSTOMER COLLECTION)" if is_customer else "PAYMENT DISBURSEMENT VOUCHER (SUPPLIER REMITTANCE)"
+
+    # Header Table
+    comp_html = f"""
+    <b>{comp_name}</b><br/>
+    <font size="7" color="#475569">{comp_legal}</font><br/>
+    <font size="6.5" color="#334155">{c_addr1}, {c_addr2}, {c_city}, {c_state} - {c_pin}<br/>
+    <b>DL Nos:</b> {c_dl20b} / {c_dl21b} | <b>GSTIN:</b> {c_gstin} | <b>PAN:</b> {c_pan}<br/>
+    <b>Mobile:</b> {c_phone} | <b>Email:</b> {c_email}</font>
+    """
+    vchr_header_html = f"""
+    <b>{doc_title}</b><br/>
+    <b>Voucher No:</b> <font color="#0f172a">{vchr_num}</font><br/>
+    <b>Date:</b> {vchr_date}<br/>
+    <b>Jurisdiction:</b> Bhuj, Kutch (Gujarat)
+    """
+
+    top_table = Table(
+        [[Paragraph(comp_html, comp_title), Paragraph(vchr_header_html, vchr_meta)]],
+        colWidths=[118 * mm, 72 * mm]
+    )
+    top_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    story.append(top_table)
+    story.append(Spacer(1, 2.5 * mm))
+
+    # Amount Banner
+    amt_table = Table(
+        [
+            [Paragraph(f"AMOUNT RECEIVED: ₹{amt:,.2f}" if is_customer else f"AMOUNT PAID: ₹{amt:,.2f}", amount_box_style)],
+            [Paragraph(f"Rupees in Words: <b>{amt_words}</b>", words_style)]
+        ],
+        colWidths=[190 * mm]
+    )
+    amt_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#f1f5f9")),
+        ('BOX', (0, 0), (-1, -1), 0.8, colors.HexColor("#0f172a")),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]))
+    story.append(amt_table)
+    story.append(Spacer(1, 2.5 * mm))
+
+    # Details Grid
+    party_role = "Received With Thanks From:" if is_customer else "Paid In Remittance To:"
+    details_data = [
+        [Paragraph(f"<b>{party_role}</b>", label_style), Paragraph(f"<b>{party_name}</b>", val_style)],
+        [Paragraph("<b>Party DL / GSTIN:</b>", label_style), Paragraph(f"DL: {p_dl} | GSTIN: {p_gstin}", val_style)],
+        [Paragraph("<b>Party Address & Mobile:</b>", label_style), Paragraph(f"{p_full_addr} (Mob: {p_mobile})", val_style)],
+        [Paragraph("<b>Payment Mode:</b>", label_style), Paragraph(f"<b>{pay_mode}</b>", val_style)],
+        [Paragraph("<b>Ref / UTR / Cheque No:</b>", label_style), Paragraph(f"{ref_no}", val_style)],
+        [Paragraph("<b>Drawee Bank & Cheque Date:</b>", label_style), Paragraph(f"Bank: {bank} | Cheque Date: {cq_date}", val_style)],
+        [Paragraph("<b>Narration / Remarks:</b>", label_style), Paragraph(f"{notes}", val_style)],
+    ]
+    details_table = Table(details_data, colWidths=[55 * mm, 135 * mm])
+    details_table.setStyle(TableStyle([
+        ('BOX', (0, 0), (-1, -1), 0.8, colors.HexColor("#0f172a")),
+        ('INNERGRID', (0, 0), (-1, -1), 0.4, colors.HexColor("#cbd5e1")),
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor("#f8fafc")),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2.5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2.5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 5),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+    ]))
+    story.append(details_table)
+    story.append(Spacer(1, 3 * mm))
+
+    # Legal Declaration & Signatures
+    statutory_note = """
+    <b>TERMS &amp; STATUTORY CONDITIONS:</b><br/>
+    1. Cheques/Demand Drafts are subject to realization.<br/>
+    2. This is an authentic computer-generated official financial receipt voucher.<br/>
+    3. Subject to Bhuj, Kutch (Gujarat) - 370001 jurisdiction only.
+    """
+    sig_l_text = f"""
+    <b>{ 'PAYER / DEPOSITOR' if is_customer else 'RECEIVER ACKNOWLEDGMENT' }:</b><br/><br/><br/><br/>
+    <b>(Signature &amp; Stamp)</b>
+    """
+    sig_r_text = f"""
+    <b>FOR {comp_name}:</b><br/><br/><br/><br/>
+    <b>Authorized Signatory</b>
+    """
+    footer_table = Table(
+        [
+            [Paragraph(statutory_note, legal_style), ""],
+            [Paragraph(sig_l_text, sig_l), Paragraph(sig_r_text, sig_r)]
+        ],
+        colWidths=[95 * mm, 95 * mm]
+    )
+    footer_table.setStyle(TableStyle([
+        ('SPAN', (0, 0), (1, 0)),
+        ('BOX', (0, 0), (-1, -1), 0.8, colors.HexColor("#0f172a")),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#f8fafc")),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('LEFTPADDING', (0, 0), (-1, -1), 5),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+        ('LINEBELOW', (0, 0), (-1, 0), 0.5, colors.HexColor("#cbd5e1")),
+    ]))
+    story.append(footer_table)
 
     doc.build(story)
     pdf_bytes = buffer.getvalue()

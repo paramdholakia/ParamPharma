@@ -1,5 +1,5 @@
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 from typing import Optional, List
 from sqlalchemy.orm import Session
@@ -13,6 +13,7 @@ from backend.app.models.invoice import SalesInvoice
 from backend.app.models.purchase import PurchaseInvoice
 from backend.app.models.company import CompanySettings
 from backend.app.services.accounting_service import AccountingService
+from backend.app.services.pdf_generator import generate_payment_voucher_pdf
 
 router = APIRouter(prefix="/api/payments", tags=["Payment Management & Vouchers"])
 
@@ -170,3 +171,65 @@ def record_supplier_payment(data: SupplierPaymentCreateSchema, db: Session = Dep
     db.commit()
     db.refresh(payment)
     return {"message": "Payment voucher created successfully", "payment": payment}
+
+@router.get("/customer/{payment_id}/pdf")
+def download_customer_receipt_pdf(payment_id: int, db: Session = Depends(get_db)):
+    """
+    Download official Payment Receipt Voucher PDF for customer collection.
+    """
+    payment = db.query(CustomerPayment).filter(CustomerPayment.id == payment_id).first()
+    if not payment:
+        raise HTTPException(status_code=404, detail="Customer payment receipt not found")
+
+    customer = db.query(Customer).filter(Customer.id == payment.customer_id).first()
+    company = db.query(CompanySettings).first()
+
+    company_dict = {c.name: getattr(company, c.name) for c in company.__table__.columns} if company else {}
+    party_dict = {c.name: getattr(customer, c.name) for c in customer.__table__.columns} if customer else {
+        "party_name": payment.customer_name, "category": "Chemist"
+    }
+    payment_dict = {c.name: getattr(payment, c.name) for c in payment.__table__.columns}
+
+    pdf_bytes = generate_payment_voucher_pdf(
+        company=company_dict,
+        party=party_dict,
+        payment=payment_dict,
+        is_customer=True
+    )
+    safe_rec = payment.receipt_number.replace("/", "_")
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=Receipt_{safe_rec}.pdf"}
+    )
+
+@router.get("/supplier/{payment_id}/pdf")
+def download_supplier_voucher_pdf(payment_id: int, db: Session = Depends(get_db)):
+    """
+    Download official Payment Disbursement Voucher PDF for supplier remittance.
+    """
+    payment = db.query(SupplierPayment).filter(SupplierPayment.id == payment_id).first()
+    if not payment:
+        raise HTTPException(status_code=404, detail="Supplier payment voucher not found")
+
+    supplier = db.query(Supplier).filter(Supplier.id == payment.supplier_id).first()
+    company = db.query(CompanySettings).first()
+
+    company_dict = {c.name: getattr(company, c.name) for c in company.__table__.columns} if company else {}
+    party_dict = {c.name: getattr(supplier, c.name) for c in supplier.__table__.columns} if supplier else {
+        "supplier_name": payment.supplier_name
+    }
+    payment_dict = {c.name: getattr(payment, c.name) for c in payment.__table__.columns}
+
+    pdf_bytes = generate_payment_voucher_pdf(
+        company=company_dict,
+        party=party_dict,
+        payment=payment_dict,
+        is_customer=False
+    )
+    safe_vch = payment.voucher_number.replace("/", "_")
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=Voucher_{safe_vch}.pdf"}
+    )

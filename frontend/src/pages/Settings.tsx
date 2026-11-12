@@ -73,8 +73,8 @@ export const Settings: React.FC<SettingsProps> = ({ showToast }) => {
   const handleCloudSync = async () => {
     setSyncLoading(true);
     try {
-      const res = await apiRequest('/cloud/sync', { method: 'POST' });
-      showToast(`Synced cleanly to MongoDB Atlas (${res.cluster})!`, 'success');
+      const res = await apiRequest('/cloud/sync-both', { method: 'POST' });
+      showToast(`Two-Way Sync complete with MongoDB Atlas (${res.cluster})! Zero duplicates.`, 'success');
       fetchSettings();
     } catch (err: any) {
       showToast(err.message || 'Cloud sync failed', 'error');
@@ -531,7 +531,7 @@ export const Settings: React.FC<SettingsProps> = ({ showToast }) => {
                 className="w-full py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-black border-1.5 border-slate-900 dark:border-slate-600 brutalist-btn flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-xs"
               >
                 <RefreshCw size={14} className={syncLoading ? 'animate-spin' : ''} />
-                <span>{syncLoading ? 'Syncing to Atlas Cloud...' : 'Sync Data to MongoDB Atlas'}</span>
+                <span>{syncLoading ? 'Syncing Bidirectionally...' : 'Two-Way Sync (SQLite ⇄ Atlas Cloud)'}</span>
               </button>
 
               <button

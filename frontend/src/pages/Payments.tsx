@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { CreditCard, Plus, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
-import { apiRequest } from '../api/client';
+import { CreditCard, Plus, ArrowDownLeft, ArrowUpRight, Printer, FileText } from 'lucide-react';
+import { apiRequest, downloadFile } from '../api/client';
 import { Modal } from '../components/Modal';
 import { formatDate } from '../utils/date';
 
@@ -100,6 +100,22 @@ export const Payments: React.FC<PaymentsProps> = ({ showToast }) => {
     }
   };
 
+  const handleDownloadVoucherPdf = async (payment: any) => {
+    try {
+      if (activeTab === 'customer') {
+        const safeNum = payment.receipt_number.replace(/\//g, '_');
+        await downloadFile(`/payments/customer/${payment.id}/pdf`, `Receipt_${safeNum}.pdf`);
+        showToast(`Downloaded Official Receipt ${payment.receipt_number}`, 'success');
+      } else {
+        const safeNum = payment.voucher_number.replace(/\//g, '_');
+        await downloadFile(`/payments/supplier/${payment.id}/pdf`, `Voucher_${safeNum}.pdf`);
+        showToast(`Downloaded Payment Voucher ${payment.voucher_number}`, 'success');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Voucher download failed', 'error');
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -149,12 +165,13 @@ export const Payments: React.FC<PaymentsProps> = ({ showToast }) => {
               <th className="py-2.5 px-3">Bank Details</th>
               <th className="py-2.5 px-3 text-right font-bold">Amount (₹)</th>
               <th className="py-2.5 px-3">Notes</th>
+              <th className="py-2.5 px-3 text-center">Receipt / Voucher PDF</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
             {(activeTab === 'customer' ? customerPayments : supplierPayments).length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-10 text-center text-slate-400 dark:text-slate-500">
+                <td colSpan={9} className="py-10 text-center text-slate-400 dark:text-slate-500">
                   No payment vouchers found in this category.
                 </td>
               </tr>
@@ -181,6 +198,16 @@ export const Payments: React.FC<PaymentsProps> = ({ showToast }) => {
                     ₹{p.amount.toFixed(2)}
                   </td>
                   <td className="py-2 px-3 text-slate-500 dark:text-slate-400 text-[11px]">{p.notes || '-'}</td>
+                  <td className="py-2 px-3 text-center">
+                    <button
+                      onClick={() => handleDownloadVoucherPdf(p)}
+                      title={activeTab === 'customer' ? 'Download Official Receipt Voucher PDF' : 'Download Payment Voucher PDF'}
+                      className="p-1 border border-slate-900 dark:border-slate-600 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 brutalist-btn cursor-pointer inline-flex items-center gap-1 text-[11px] font-semibold"
+                    >
+                      <Printer size={12} />
+                      <span>{activeTab === 'customer' ? 'Receipt' : 'Voucher'}</span>
+                    </button>
+                  </td>
                 </tr>
               ))
             )}
