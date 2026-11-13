@@ -427,9 +427,17 @@ def clean_wipe_both_databases(db_session) -> Dict[str, Any]:
     from sqlalchemy import text
     from passlib.hash import pbkdf2_sha256
 
-    # 1. Truncate SQLite tables safely with foreign keys disabled
+    # 1. Truncate tables safely (supports both SQLite and PostgreSQL)
+    is_sqlite = "sqlite" in str(db_session.bind.url)
     try:
-        db_session.execute(text("PRAGMA foreign_keys = OFF;"))
+        if is_sqlite:
+            db_session.execute(text("PRAGMA foreign_keys = OFF;"))
+        else:
+            try:
+                db_session.execute(text("SET session_replication_role = 'replica';"))
+            except Exception:
+                pass
+
         db_session.query(SalesReturnItem).delete()
         db_session.query(SalesReturn).delete()
         db_session.query(PurchaseReturnItem).delete()
@@ -449,11 +457,14 @@ def clean_wipe_both_databases(db_session) -> Dict[str, Any]:
         db_session.query(Product).delete()
         db_session.query(Customer).delete()
         db_session.query(Supplier).delete()
-        db_session.execute(text("PRAGMA foreign_keys = ON;"))
-        db_session.query(ProductBatch).delete()
-        db_session.query(Product).delete()
-        db_session.query(Customer).delete()
-        db_session.query(Supplier).delete()
+
+        if is_sqlite:
+            db_session.execute(text("PRAGMA foreign_keys = ON;"))
+        else:
+            try:
+                db_session.execute(text("SET session_replication_role = 'origin';"))
+            except Exception:
+                pass
 
         # Reset / Upsert clean CompanySettings
         comp = db_session.query(CompanySettings).first()
@@ -521,7 +532,7 @@ def clean_wipe_both_databases(db_session) -> Dict[str, Any]:
         db_session.commit()
     except Exception as e:
         db_session.rollback()
-        return {"success": False, "error": f"SQLite wipe failed: {e}"}
+        return {"success": False, "error": f"Database wipe failed: {e}"}
 
     # 2. Wipe and sync to MongoDB Atlas
     cloud_db = get_mongo_db()
