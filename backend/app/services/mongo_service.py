@@ -96,7 +96,7 @@ def serialize_for_mongo(val: Any) -> Any:
 
 def sync_all_to_cloud(db_session) -> Dict[str, Any]:
     """Sync all active SQLite tables to MongoDB Atlas cluster."""
-    cloud_db = get_mongo_db()
+    cloud_db = get_mongo_db() if is_sqlite else None
     if cloud_db is None:
         return {"success": False, "error": "MongoDB Atlas connection unavailable"}
 
@@ -222,7 +222,7 @@ def pull_from_cloud_to_sqlite(db_session) -> Dict[str, Any]:
       2. Non-destructive upsert (updates existing records, inserts new ones).
       3. Safe type deserialization for dates, datetimes, floats, and booleans.
     """
-    cloud_db = get_mongo_db()
+    cloud_db = get_mongo_db() if is_sqlite else None
     if cloud_db is None:
         return {"success": False, "error": "MongoDB Atlas connection unavailable"}
 
@@ -432,40 +432,36 @@ def clean_wipe_both_databases(db_session) -> Dict[str, Any]:
     try:
         if is_sqlite:
             db_session.execute(text("PRAGMA foreign_keys = OFF;"))
-        else:
-            try:
-                db_session.execute(text("SET session_replication_role = 'replica';"))
-            except Exception:
-                pass
-
-        db_session.query(SalesReturnItem).delete()
-        db_session.query(SalesReturn).delete()
-        db_session.query(PurchaseReturnItem).delete()
-        db_session.query(PurchaseReturn).delete()
-        db_session.query(SalesInvoiceItem).delete()
-        db_session.query(SalesInvoice).delete()
-        db_session.query(PurchaseInvoiceItem).delete()
-        db_session.query(PurchaseInvoice).delete()
-        db_session.query(CustomerPayment).delete()
-        db_session.query(SupplierPayment).delete()
-        db_session.query(CustomerLedger).delete()
-        db_session.query(SupplierLedger).delete()
-        db_session.query(StockMovement).delete()
-        db_session.query(StockAdjustment).delete()
-        db_session.query(Expense).delete()
-        db_session.query(ProductBatch).delete()
-        db_session.query(Product).delete()
-        db_session.query(Customer).delete()
-        db_session.query(Supplier).delete()
-
-        if is_sqlite:
+            db_session.query(SalesReturnItem).delete()
+            db_session.query(SalesReturn).delete()
+            db_session.query(PurchaseReturnItem).delete()
+            db_session.query(PurchaseReturn).delete()
+            db_session.query(SalesInvoiceItem).delete()
+            db_session.query(SalesInvoice).delete()
+            db_session.query(PurchaseInvoiceItem).delete()
+            db_session.query(PurchaseInvoice).delete()
+            db_session.query(CustomerPayment).delete()
+            db_session.query(SupplierPayment).delete()
+            db_session.query(CustomerLedger).delete()
+            db_session.query(SupplierLedger).delete()
+            db_session.query(StockMovement).delete()
+            db_session.query(StockAdjustment).delete()
+            db_session.query(Expense).delete()
+            db_session.query(ProductBatch).delete()
+            db_session.query(Product).delete()
+            db_session.query(Customer).delete()
+            db_session.query(Supplier).delete()
             db_session.execute(text("PRAGMA foreign_keys = ON;"))
         else:
-            try:
-                db_session.execute(text("SET session_replication_role = 'origin';"))
-            except Exception:
-                pass
-
+            table_names = [
+                "sales_return_items", "sales_returns", "purchase_return_items", "purchase_returns",
+                "sales_invoice_items", "sales_invoices", "purchase_invoice_items", "purchase_invoices",
+                "customer_payments", "supplier_payments", "customer_ledger", "supplier_ledger",
+                "stock_movements", "stock_adjustments", "expenses", "product_batches", "products",
+                "customers", "suppliers"
+            ]
+            tables_sql = ', '.join(table_names)
+            db_session.execute(text(f"TRUNCATE TABLE {tables_sql} RESTART IDENTITY CASCADE;"))
         # Reset / Upsert clean CompanySettings
         comp = db_session.query(CompanySettings).first()
         if not comp:
@@ -535,7 +531,7 @@ def clean_wipe_both_databases(db_session) -> Dict[str, Any]:
         return {"success": False, "error": f"Database wipe failed: {e}"}
 
     # 2. Wipe and sync to MongoDB Atlas
-    cloud_db = get_mongo_db()
+    cloud_db = get_mongo_db() if is_sqlite else None
     if cloud_db is not None:
         try:
             collections_to_drop = [
