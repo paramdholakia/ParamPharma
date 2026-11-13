@@ -25,7 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   useEffect(() => {
     apiRequest('/cloud/status')
       .then((res) => setCloudStatus(res))
-      .catch(() => setCloudStatus({ connected: false, cluster: 'ParamPharmaCluster', latency_ms: 0 }));
+      .catch(() => setCloudStatus({ connected: false, cluster: 'Neon (Offline)', latency_ms: 0 }));
   }, []);
 
   return (
@@ -48,17 +48,17 @@ export const Header: React.FC<HeaderProps> = ({
                 ? 'border-emerald-600 dark:border-emerald-500 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
                 : 'border-slate-400 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
             }`}
-            title={`MongoDB Atlas: ${cloudStatus.cluster} | Latency: ${cloudStatus.latency_ms}ms`}
+            title={`Neon Cloud PostgreSQL (${cloudStatus.cluster}) | Latency: ${cloudStatus.latency_ms}ms`}
           >
             {cloudStatus.connected ? (
               <>
                 <Cloud size={12} className="text-emerald-600 dark:text-emerald-400" />
-                <span className="font-bold">Atlas: Connected</span>
+                <span className="font-bold">Neon DB: Live ({cloudStatus.latency_ms}ms)</span>
               </>
             ) : (
               <>
                 <CloudOff size={12} />
-                <span>Atlas: Offline</span>
+                <span>Neon DB: Offline</span>
               </>
             )}
           </span>

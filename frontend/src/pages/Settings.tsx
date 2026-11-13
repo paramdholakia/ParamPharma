@@ -74,7 +74,7 @@ export const Settings: React.FC<SettingsProps> = ({ showToast }) => {
     setSyncLoading(true);
     try {
       const res = await apiRequest('/cloud/sync-both', { method: 'POST' });
-      showToast(`Two-Way Sync complete with MongoDB Atlas (${res.cluster})! Zero duplicates.`, 'success');
+      showToast(res.message || `Neon Cloud PostgreSQL active (${res.cluster || 'production'})! Synchronizing live across Vercel, Render & Mobile.`, 'success');
       fetchSettings();
     } catch (err: any) {
       showToast(err.message || 'Cloud sync failed', 'error');
@@ -84,7 +84,7 @@ export const Settings: React.FC<SettingsProps> = ({ showToast }) => {
   };
 
   const handleCleanReset = async () => {
-    if (!window.confirm("WARNING: This will wipe all test/dummy invoices, products, and parties from both SQLite and MongoDB Atlas for a completely fresh start. Invoices will start at 1. Proceed?")) return;
+    if (!window.confirm("WARNING: This will wipe all test/dummy invoices, products, and parties from Neon Cloud PostgreSQL for a completely fresh start. Master company credentials will be preserved, and invoices will start at 1. Proceed?")) return;
     setResetLoading(true);
     try {
       const res = await apiRequest('/cloud/clean-reset', { method: 'POST' });
@@ -486,34 +486,34 @@ export const Settings: React.FC<SettingsProps> = ({ showToast }) => {
             </div>
           </div>
 
-          {/* MongoDB Atlas Cloud Sync */}
+          {/* Neon Cloud Database & Realtime */}
           <div className="bg-white dark:bg-slate-900 p-4 rounded border-1.5 border-slate-900 dark:border-slate-700 brutalist-card">
             <h3 className="font-black text-slate-900 dark:text-white mb-2 flex items-center justify-between text-xs uppercase font-mono">
               <span className="flex items-center gap-1.5">
                 <Cloud size={16} className="text-emerald-600 dark:text-emerald-400" />
-                MongoDB Atlas Cloud Sync
+                Neon Cloud Database & Realtime
               </span>
               <span className={`text-[10px] font-bold px-2 py-0.5 border ${
                 cloudStatus?.connected
                   ? 'border-emerald-600 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300'
                   : 'border-slate-400 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
               }`}>
-                {cloudStatus?.connected ? 'ONLINE' : 'OFFLINE'}
+                {cloudStatus?.connected ? 'LIVE & SYNCHRONIZED' : 'OFFLINE'}
               </span>
             </h3>
 
             <div className="space-y-1.5 text-[11px] font-mono text-slate-600 dark:text-slate-400 mb-3 bg-slate-50 dark:bg-slate-800 p-2.5 border border-slate-200 dark:border-slate-700">
               <div className="flex justify-between">
-                <span>Cluster:</span>
-                <span className="font-bold text-slate-900 dark:text-white">ParamPharmaCluster</span>
+                <span>Engine:</span>
+                <span className="font-bold text-slate-900 dark:text-white">{cloudStatus?.engine || 'Neon Serverless PostgreSQL'}</span>
               </div>
               <div className="flex justify-between">
-                <span>Database:</span>
-                <span className="font-bold text-slate-900 dark:text-white">param_pharma</span>
+                <span>Branch:</span>
+                <span className="font-bold text-slate-900 dark:text-white">{cloudStatus?.branch || 'production'}</span>
               </div>
               <div className="flex justify-between">
                 <span>Region:</span>
-                <span className="text-slate-700 dark:text-slate-300">AWS ap-south-1 (Mumbai)</span>
+                <span className="text-slate-700 dark:text-slate-300">{cloudStatus?.region || 'AWS us-east-2 (Ohio)'}</span>
               </div>
               {cloudStatus?.connected && (
                 <div className="flex justify-between">
@@ -531,7 +531,7 @@ export const Settings: React.FC<SettingsProps> = ({ showToast }) => {
                 className="w-full py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-black border-1.5 border-slate-900 dark:border-slate-600 brutalist-btn flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-xs"
               >
                 <RefreshCw size={14} className={syncLoading ? 'animate-spin' : ''} />
-                <span>{syncLoading ? 'Syncing Bidirectionally...' : 'Two-Way Sync (SQLite ⇄ Atlas Cloud)'}</span>
+                <span>{syncLoading ? 'Verifying Live Sync...' : 'Verify Live Sync (Vercel ⇄ Render ⇄ Mobile)'}</span>
               </button>
 
               <button
@@ -539,7 +539,7 @@ export const Settings: React.FC<SettingsProps> = ({ showToast }) => {
                 onClick={handleCleanReset}
                 disabled={resetLoading}
                 className="w-full py-2 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-700 dark:text-rose-300 font-bold border border-rose-300 dark:border-rose-800 brutalist-btn flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-[11px]"
-                title="Wipes dummy data from SQLite & Atlas for fresh data entry"
+                title="Wipes dummy data from Neon Cloud PostgreSQL for fresh live billing"
               >
                 <Trash2 size={13} className={resetLoading ? 'animate-spin' : ''} />
                 <span>{resetLoading ? 'Resetting Database...' : 'Clean Reset (Fresh Start)'}</span>

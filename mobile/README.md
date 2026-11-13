@@ -23,7 +23,7 @@ High-performance mobile application for **Param Pharma** field operations (van d
                         │
                         ▼
 ┌───────────────────────────────────────────────┐
-│        MongoDB Atlas M0 / SQLite WAL          │
+│       Neon Serverless PostgreSQL (Cloud)      │
 │            Persistent Data Store              │
 └───────────────────────────────────────────────┘
 ```
