@@ -49,13 +49,15 @@ app.include_router(cloud.router)
 def on_startup():
     init_database()
 
-@app.get("/api/health")
+@app.api_route("/api/health", methods=["GET", "HEAD"])
 def health_check():
+    from backend.app.config import DATABASE_URL
+    db_type = "Neon PostgreSQL (Cloud)" if "postgres" in str(DATABASE_URL) else "SQLite (Local WAL Mode)"
     return {
         "status": "online",
         "app": "Param Pharma ERP",
         "version": "1.0.0",
-        "database": "SQLite WAL Mode"
+        "database": db_type
     }
 
 # Serve Production Single-Page React App directly from FastAPI (Zero Node.js needed on client machine)
@@ -65,7 +67,7 @@ if os.path.exists(DIST_DIR):
     if os.path.exists(assets_path):
         app.mount("/assets", StaticFiles(directory=assets_path), name="static-assets")
 
-    @app.get("/{full_path:path}")
+    @app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
     def serve_frontend_spa(full_path: str):
         if full_path.startswith("api/"):
             raise HTTPException(status_code=404, detail="API route not found")
