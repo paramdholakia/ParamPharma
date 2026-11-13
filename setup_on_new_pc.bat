@@ -21,18 +21,16 @@ if %ERRORLEVEL% neq 0 (
 )
 python --version
 
-:: Step 2: Check Node.js
+:: Step 2: Check Node.js (Optional - UI is pre-compiled)
 echo.
-echo [2/6] Checking Node.js installation...
+echo [2/6] Checking Node.js (Optional)...
 node --version >nul 2>&1
 if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Node.js is not installed or not in PATH!
-    echo Please install Node.js LTS from https://nodejs.org/
-    echo.
-    pause
-    exit /b 1
+    echo [INFO] Node.js is not installed. Using pre-compiled production UI bundle (Perfect for Windows 7).
+) else (
+    echo [OK] Node.js found:
+    node --version
 )
-node --version
 
 :: Step 3: Check Git
 echo.
@@ -61,11 +59,16 @@ echo [OK] Backend environment is ready.
 
 :: Step 5: Setup Frontend
 echo.
-echo [5/6] Setting up Desktop Web Frontend...
-cd frontend
-call npm install --prefer-offline --no-audit --no-fund
-cd ..
-echo [OK] Frontend packages installed.
+echo [5/6] Checking Desktop Web Frontend...
+if exist "frontend\dist\index.html" (
+    echo [OK] Production UI bundle ready to serve directly from Python backend.
+) else (
+    if exist "frontend" (
+        cd frontend
+        call npm install --prefer-offline --no-audit --no-fund
+        cd ..
+    )
+)
 
 :: Step 6: Initialize Database & Create Desktop Shortcut
 echo.
