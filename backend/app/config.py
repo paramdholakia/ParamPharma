@@ -9,7 +9,12 @@ BACKUP_DIR = BASE_DIR / "backups"
 BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
 DB_PATH = DATA_DIR / "param_pharma.db"
-DATABASE_URL = f"sqlite:///{DB_PATH}"
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    DATABASE_URL = f"sqlite:///{DB_PATH}"
+elif DATABASE_URL.startswith("postgres://"):
+    # Render and Supabase provide postgres://, SQLAlchemy requires postgresql://
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 SECRET_KEY = os.getenv("SECRET_KEY", "param_pharma_secure_secret_key_2026_wholesale_erp")
 ALGORITHM = "HS256"
