@@ -40,3 +40,4 @@ backend/backups/*.db
 *.swo
 .DS_Store
 Thumbs.db
+.neon
