@@ -6,9 +6,9 @@ const STORAGE_KEY = '@param_pharma_api_url';
 export const DEFAULT_API_URL = 'http://192.168.1.4:8000/api';
 
 export const SERVER_PRESETS = [
-  { label: 'LAN Wi-Fi (Host PC: 192.168.1.4)', url: 'http://192.168.1.4:8000/api' },
-  { label: 'Android Emulator (10.0.2.2)', url: 'http://10.0.2.2:8000/api' },
-  { label: 'Localhost (Web / Device: 127.0.0.1)', url: 'http://127.0.0.1:8000/api' },
+  { label: 'USB Cable (ADB Reverse: 127.0.0.1:8000)', url: 'http://127.0.0.1:8000/api' },
+  { label: 'LAN Wi-Fi (Host PC: 192.168.1.4:8000)', url: 'http://192.168.1.4:8000/api' },
+  { label: 'Android Emulator (10.0.2.2:8000)', url: 'http://10.0.2.2:8000/api' },
 ];
 
 let currentApiUrl = DEFAULT_API_URL;
