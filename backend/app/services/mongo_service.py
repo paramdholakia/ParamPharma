@@ -1,6 +1,9 @@
 import os
 import time
-import pymongo
+try:
+    import pymongo
+except ImportError:
+    pymongo = None
 from typing import Dict, Any, Optional
 from datetime import datetime, date
 
@@ -20,9 +23,9 @@ MONGO_URI = os.getenv(
 DB_NAME = "param_pharma"
 CLUSTER_NAME = "ParamPharmaCluster"
 
-_mongo_client: Optional[pymongo.MongoClient] = None
+_mongo_client: Optional[Any] = None
 
-def get_mongo_client() -> Optional[pymongo.MongoClient]:
+def get_mongo_client() -> Optional[Any]:
     global _mongo_client
     if _mongo_client is None:
         try:
