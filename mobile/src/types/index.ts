@@ -42,6 +42,7 @@ export interface Customer {
 export interface Product {
   id: number;
   product_code: string;
+  medicine_name?: string;
   product_name: string;
   generic_name?: string;
   manufacturer?: string;

@@ -70,14 +70,32 @@ def list_products(
     # Calculate total available stock across all batches for each product
     results = []
     for p in products:
-        total_stock = (
-            db.query(func.coalesce(func.sum(ProductBatch.available_qty), 0))
+        p_batches = (
+            db.query(ProductBatch)
             .filter(ProductBatch.product_id == p.id, ProductBatch.is_active == True)
-            .scalar()
+            .order_by(ProductBatch.expiry_date.asc())
+            .all()
         )
+        total_stock = sum(b.available_qty for b in p_batches)
         p_dict = {c.name: getattr(p, c.name) for c in p.__table__.columns}
+        p_dict["product_name"] = p.medicine_name  # Alias for mobile client compatibility
         p_dict["total_available_stock"] = int(total_stock)
+        p_dict["total_stock"] = int(total_stock)
         p_dict["is_low_stock"] = total_stock <= p.min_stock_level
+        p_dict["batches"] = [
+            {
+                "id": b.id,
+                "product_id": b.product_id,
+                "batch_number": b.batch_number,
+                "expiry_date": str(b.expiry_date) if b.expiry_date else "",
+                "mrp": float(b.mrp or 0.0),
+                "ptr": float(b.ptr or 0.0),
+                "pts": float(b.pts or 0.0),
+                "current_stock": int(b.available_qty or 0),
+                "available_qty": int(b.available_qty or 0),
+            }
+            for b in p_batches
+        ]
         results.append(p_dict)
 
     return {"total": total, "products": results}

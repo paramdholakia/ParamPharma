@@ -38,14 +38,19 @@ export const StockScreen: React.FC = () => {
   };
 
   const filtered = products.filter((p) => {
-    const matchesSearch =
-      p.product_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.generic_name && p.generic_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (p.manufacturer && p.manufacturer.toLowerCase().includes(searchQuery.toLowerCase()));
+    const q = (searchQuery || '').trim().toLowerCase();
+    const prodName = (p.product_name || p.medicine_name || '').toLowerCase();
+    const genName = (p.generic_name || '').toLowerCase();
+    const mfgName = (p.manufacturer || '').toLowerCase();
+
+    const matchesSearch = !q || prodName.includes(q) || genName.includes(q) || mfgName.includes(q);
 
     if (!matchesSearch) return false;
 
-    const totalStk = (p.batches || []).reduce((sum, b) => sum + b.current_stock, 0);
+    const totalStk = (p.batches || []).reduce(
+      (sum, b) => sum + (Number(b.current_stock ?? b.available_qty) || 0),
+      Number(p.total_available_stock ?? p.total_stock) || 0
+    );
 
     if (filterMode === 'low') {
       return totalStk <= (p.min_stock_level || 20);
@@ -104,7 +109,7 @@ export const StockScreen: React.FC = () => {
               <View key={p.id} style={styles.productCard}>
                 <View style={styles.cardHeaderRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.productTitle}>{p.product_name}</Text>
+                    <Text style={styles.productTitle}>{p.product_name || p.medicine_name || 'Unnamed Product'}</Text>
                     {p.generic_name && (
                       <Text style={styles.genericText}>{p.generic_name}</Text>
                     )}

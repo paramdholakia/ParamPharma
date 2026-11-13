@@ -102,7 +102,7 @@ export const BillingScreen: React.FC<BillingScreenProps> = () => {
     const taxable = gross - discountAmount;
     const gstRate = selectedProduct.gst_rate || 12;
 
-    const isInterState = selectedCustomer?.state && selectedCustomer.state.toLowerCase() !== 'gujarat';
+    const isInterState = selectedCustomer?.state && (selectedCustomer.state || '').toLowerCase() !== 'gujarat';
     const cgst = isInterState ? 0 : (taxable * (gstRate / 2)) / 100;
     const sgst = isInterState ? 0 : (taxable * (gstRate / 2)) / 100;
     const igst = isInterState ? (taxable * gstRate) / 100 : 0;
@@ -111,7 +111,7 @@ export const BillingScreen: React.FC<BillingScreenProps> = () => {
     const newItem: InvoiceItemPayload = {
       product_id: selectedProduct.id,
       batch_id: selectedBatch.id,
-      product_name: selectedProduct.product_name,
+      product_name: selectedProduct.product_name || selectedProduct.medicine_name || '',
       batch_number: selectedBatch.batch_number,
       expiry_date: selectedBatch.expiry_date,
       packing: selectedProduct.packing || '',
@@ -396,10 +396,14 @@ export const BillingScreen: React.FC<BillingScreenProps> = () => {
           />
           <ScrollView>
             {customers
-              .filter((c) =>
-                c.party_name.toLowerCase().includes(searchCustomerQuery.toLowerCase()) ||
-                (c.city && c.city.toLowerCase().includes(searchCustomerQuery.toLowerCase()))
-              )
+              .filter((c) => {
+                const q = (searchCustomerQuery || '').trim().toLowerCase();
+                if (!q) return true;
+                return (
+                  (c.party_name || '').toLowerCase().includes(q) ||
+                  (c.city && c.city.toLowerCase().includes(q))
+                );
+              })
               .map((c) => (
                 <TouchableOpacity
                   key={c.id}
@@ -440,12 +444,18 @@ export const BillingScreen: React.FC<BillingScreenProps> = () => {
               />
               <ScrollView>
                 {products
-                  .filter((p) =>
-                    p.product_name.toLowerCase().includes(searchProductQuery.toLowerCase()) ||
-                    (p.generic_name && p.generic_name.toLowerCase().includes(searchProductQuery.toLowerCase()))
-                  )
+                  .filter((p) => {
+                    const q = (searchProductQuery || '').trim().toLowerCase();
+                    if (!q) return true;
+                    const pName = (p.product_name || p.medicine_name || '').toLowerCase();
+                    const gName = (p.generic_name || '').toLowerCase();
+                    return pName.includes(q) || gName.includes(q);
+                  })
                   .map((p) => {
-                    const totalStk = (p.batches || []).reduce((sum, b) => sum + b.current_stock, 0);
+                    const totalStk = (p.batches || []).reduce(
+                      (sum, b) => sum + (Number(b.current_stock ?? b.available_qty) || 0),
+                      Number(p.total_available_stock ?? p.total_stock) || 0
+                    );
                     return (
                       <TouchableOpacity
                         key={p.id}
@@ -453,7 +463,7 @@ export const BillingScreen: React.FC<BillingScreenProps> = () => {
                         onPress={() => handleSelectProduct(p)}
                       >
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.pickerRowTitle}>{p.product_name}</Text>
+                          <Text style={styles.pickerRowTitle}>{p.product_name || p.medicine_name || 'Medicine'}</Text>
                           <Text style={styles.pickerRowMeta}>{p.packing || ''} | {p.manufacturer || ''}</Text>
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
@@ -474,7 +484,7 @@ export const BillingScreen: React.FC<BillingScreenProps> = () => {
                 <Text style={styles.backBtnText}>Change Medicine</Text>
               </TouchableOpacity>
 
-              <Text style={styles.chosenProductTitle}>{selectedProduct.product_name}</Text>
+              <Text style={styles.chosenProductTitle}>{selectedProduct.product_name || selectedProduct.medicine_name || 'Selected Medicine'}</Text>
               <Text style={styles.chosenProductMeta}>
                 {selectedProduct.packing} | GST: {selectedProduct.gst_rate}%
               </Text>

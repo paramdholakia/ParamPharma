@@ -269,7 +269,7 @@ export const CollectionsScreen: React.FC = () => {
           />
           <ScrollView>
             {customers
-              .filter((c) => c.party_name.toLowerCase().includes(searchQuery.toLowerCase()))
+              .filter((c) => (c.party_name || '').toLowerCase().includes((searchQuery || '').toLowerCase()))
               .map((c) => (
                 <TouchableOpacity
                   key={c.id}

@@ -78,12 +78,14 @@ export const CustomersScreen: React.FC = () => {
     Linking.openURL(`whatsapp://send?phone=${num}&text=${encodeURIComponent(msg)}`);
   };
 
-  const filtered = customers.filter(
-    (c) =>
-      c.party_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (c.city && c.city.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (c.mobile && c.mobile.includes(searchQuery))
-  );
+  const filtered = customers.filter((c) => {
+    const q = (searchQuery || '').trim().toLowerCase();
+    if (!q) return true;
+    const name = (c.party_name || '').toLowerCase();
+    const city = (c.city || '').toLowerCase();
+    const mob = c.mobile || '';
+    return name.includes(q) || city.includes(q) || mob.includes(q);
+  });
 
   return (
     <View style={styles.container}>
