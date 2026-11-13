@@ -36,27 +36,19 @@ if %ERRORLEVEL% equ 0 (
 )
 echo.
 
-:: 3. Start Backend REST API (Binding to 0.0.0.0 for LAN and Mobile Access)
-echo Starting FastAPI REST backend on port 8000...
+:: 3. Start Single-Process ERP Server (FastAPI serves API + Desktop Web UI + Mobile)
+echo Starting Param Pharma ERP Engine on port 8000...
 start /b "" ".\venv\Scripts\python.exe" -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
-timeout /t 2 /nobreak >nul
+timeout /t 3 /nobreak >nul
 
-:: 4. Start Desktop Frontend UI
-echo Starting Desktop UI on port 5173...
-cd frontend
-start /b "" npx vite --host 0.0.0.0 --port 5173
-cd ..
-timeout /t 2 /nobreak >nul
-
-:: 5. Open Web App in Default Browser
+:: 4. Open Web App in Default Browser
 echo Opening Param Pharma ERP in default browser...
-start http://127.0.0.1:5173
+start http://127.0.0.1:8000
 
 echo.
 echo =====================================================================
 echo   PARAM PHARMA ERP IS LIVE AND OPERATIONAL
-echo   - Local Desktop: http://127.0.0.1:5173
-echo   - Backend API:   http://127.0.0.1:8000
+echo   - Local Desktop: http://127.0.0.1:8000
 echo   - Mobile / LAN:  Accessible on Wi-Fi IP :8000
 echo =====================================================================
 echo Keep this window open while working. To exit, close this window.
